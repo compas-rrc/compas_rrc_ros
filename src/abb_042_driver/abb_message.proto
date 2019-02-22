@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+message AbbHeader {
+  fixed32 msg_length = 1;
+  fixed32 version = 2;
+  fixed32 sec = 3;
+  fixed32 nsec = 4;
+}
+
+message AbbMessage {
+  enum ExecLevel {
+      MOTION = 0;
+      RECEIVER = 1;
+      SENDER = 2;
+      USER = 20;
+  }
+  enum FeedbackLevel {
+    NONE = 0;
+    INSTRUCTION_COMPLETED = 1;
+    INSTRUCTION_COMPLETED_AND_JOINT_STATE = 2;
+  }
+
+  fixed32 sequence_id = 1;
+  ExecLevel exec_level = 2;
+  FeedbackLevel feedback_level = 3;
+  fixed32 instruction_len = 4;
+  string instruction = 5;
+
+  fixed32 str_count = 6;
+
+  fixed32 str_1_len = 7;
+  string  str_1_val = 8;
+  fixed32 str_2_len = 9;
+  string  str_2_val = 10;
+  fixed32 str_3_len = 11;
+  string  str_3_val = 12;
+  fixed32 str_4_len = 13;
+  string  str_4_val = 14;
+  fixed32 str_5_len = 15;
+  string  str_5_val = 16;
+
+  fixed32 float_val_count = 17;
+  float float_val_01 = 17;
+  float float_val_02 = 18;
+  float float_val_03 = 19;
+  float float_val_04 = 20;
+  float float_val_05 = 21;
+  float float_val_06 = 22;
+  float float_val_07 = 23;
+  float float_val_08 = 24;
+  float float_val_09 = 25;
+  float float_val_10 = 26;
+  float float_val_11 = 27;
+  float float_val_12 = 28;
+  float float_val_13 = 29;
+  float float_val_14 = 30;
+  float float_val_15 = 31;
+  float float_val_16 = 32;
+  float float_val_17 = 33;
+  float float_val_18 = 34;
+  float float_val_19 = 35;
+  float float_val_20 = 36;
+  float float_val_21 = 37;
+  float float_val_22 = 38;
+  float float_val_23 = 39;
+  float float_val_24 = 40;
+  float float_val_25 = 41;
+  float float_val_26 = 42;
+  float float_val_27 = 43;
+  float float_val_28 = 44;
+  float float_val_29 = 45;
+  float float_val_30 = 46;
+}
