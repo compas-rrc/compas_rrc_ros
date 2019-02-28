@@ -3,9 +3,6 @@ from __future__ import division
 from __future__ import print_function
 
 import struct
-import logging
-
-LOG = logging.getLogger('service')
 
 __all__ = [
     'WireProtocol'
@@ -23,8 +20,6 @@ class WireProtocolVersion1(object):
     HEADER_FORMAT = '4I'
     MAX_STRING_VALUES = 5
     MAX_FLOAT_VALUES = 30
-    REQUIRED_STRING_VALUES = 5
-    REQUIRED_FLOAT_VALUES = 30
     INSTRUCTION_PREFIX = b'r_A042_'
 
     @classmethod
@@ -76,7 +71,7 @@ class WireProtocolVersion1(object):
         header = [message_length, cls.VERSION, sec, nsec]
 
         # TODO: Remove once protocol is good
-        LOG.debug('Header=%s, Payload=%s', str(header), str(payload))
+        # LOG.debug('Header=%s, Payload=%s', str(header), str(payload))
 
         packed_header = struct.pack(
             cls.BYTE_ORDER + cls.HEADER_FORMAT, *header)
