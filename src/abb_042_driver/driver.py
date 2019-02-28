@@ -26,6 +26,7 @@ QUEUE_TERMINATION_TOKEN = None
 
 class RobotStateConnection(EventEmitterMixin):
     def __init__(self, host, port):
+        super(RobotStateConnection, self).__init__()
         self.is_running = False
         self.host = host
         self.port = port
