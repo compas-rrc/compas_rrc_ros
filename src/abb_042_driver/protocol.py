@@ -120,12 +120,11 @@ class WireProtocolVersion1(object):
         float_values = struct.unpack(cls.BYTE_ORDER + float_format, payload[start_pos:])
 
         message = Message(instruction,
-                          exec_level,
-                          sequence_id,
-                          exec_level,
-                          feedback_level,
-                          string_values,
-                          float_values)
+                          sequence_id=sequence_id,
+                          exec_level=exec_level,
+                          feedback_level=feedback_level,
+                          string_values=string_values,
+                          float_values=float_values)
 
         return message
 
