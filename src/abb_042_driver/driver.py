@@ -170,7 +170,7 @@ class StreamingInterfaceConnection(object):
                     # self.socket.send(SOCKET_CLOSE_COMMAND)
                     break
                 else:
-                    rospy.logdebug('Executing: "%s"\n        with values: %s', message.instruction, message.float_values)
+                    rospy.logdebug('Executing: "%s"\n        with content: %s', message.instruction, str(message.to_data()))
                     self.socket.send(WireProtocol.serialize(message))
             except queue.Empty:
                 pass
@@ -201,6 +201,7 @@ class AbbStringServiceProvider(object):
             self.robot_state.on(message.key, abb_response_received)
             self.streaming_interface.execute_instruction(message)
             wait_event.wait(RESPONSE_TIMEOUT)
+            rospy.loginfo('DEBUG results: %s', str(call_results))
             return srv.AbbStringCommandResponse(call_results['response'])
 
         # TODO: Disabled for now
@@ -213,12 +214,11 @@ class AbbStringServiceProvider(object):
 
 
 def main():
-    import sys
     DEBUG = True
 
     # ROS_HOST = '192.168.0.221'
     # ABB_HOST = '192.168.125.21'
-    ABB_HOST = '127.0.0.1'
+    ABB_HOST_DEFAULT = '127.0.0.1'
 
     ROBOT_STREAMING_INTERFACE_PORT = 30003
     ROBOT_STATE_PORT = 30004
@@ -226,18 +226,19 @@ def main():
 
     log_level = rospy.DEBUG if DEBUG else rospy.INFO
     rospy.init_node('abb_042_driver', log_level=log_level)
+    abb_host = rospy.get_param('robot_ip_address', ABB_HOST_DEFAULT)
 
-    if len(sys.argv) > 1:
-        ABB_HOST = sys.argv[1]
+    streaming_interface = None
+    robot_state = None
 
     try:
         # topic = roslibpy.Topic(ros, '/robot_state', 'std_msgs/String') # sensor_msgs/JointState
 
-        rospy.loginfo('Connecting robot %s...', ABB_HOST)
-        streaming_interface = StreamingInterfaceConnection(ABB_HOST, ROBOT_STREAMING_INTERFACE_PORT)
+        rospy.loginfo('Connecting robot %s...', abb_host)
+        streaming_interface = StreamingInterfaceConnection(abb_host, ROBOT_STREAMING_INTERFACE_PORT)
         streaming_interface.connect()
 
-        robot_state = RobotStateConnection(ABB_HOST, ROBOT_STATE_PORT)
+        robot_state = RobotStateConnection(abb_host, ROBOT_STATE_PORT)
         robot_state.connect()
 
         if DEBUG:
