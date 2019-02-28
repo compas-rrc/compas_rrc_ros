@@ -44,6 +44,8 @@ class WireProtocolVersion1(object):
         if current_items > cls.MAX_STRING_VALUES:
             raise ValueError('Protocol does not support more than ' +
                              cls.MAX_STRING_VALUES + ' string values')
+
+        # Append counter of string values
         payload_format += 'I'
         payload.append(current_items)
 
@@ -55,6 +57,8 @@ class WireProtocolVersion1(object):
 
         # Build numerical values
         current_items = len(float_values)
+
+        # Append counter of float values
         payload_format += 'I'
         payload.append(current_items)
 
