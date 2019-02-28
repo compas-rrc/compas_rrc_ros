@@ -2,8 +2,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import time
 import threading
+import time
 
 from .protocol import WireProtocol
 
@@ -54,9 +54,7 @@ class AbbMessage(object):
         self._wire_message = None
 
     def serialize(self):
-        """Serializes the current message into the wire format.
-
-        This method is only exposed"""
+        """Serializes the current message into the wire format."""
         header, payload = WireProtocol.serialize(self)
         self._wire_message = header + payload
 
