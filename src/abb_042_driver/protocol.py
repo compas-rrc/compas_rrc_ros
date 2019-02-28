@@ -3,7 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import struct
-from .message import Message
+from abb_042_driver.message import Message
 
 __all__ = [
     'WireProtocol'

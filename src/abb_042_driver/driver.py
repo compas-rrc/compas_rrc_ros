@@ -4,13 +4,12 @@ import socket
 import threading
 import time
 
-import abb_042_driver.msg
-import abb_042_driver.srv
 import rospy
-
-from .event_emitter import EventEmitterMixin
-from .message import Message
-from .protocol import WireProtocol
+from abb_042_driver import msg
+from abb_042_driver import srv
+from abb_042_driver.event_emitter import EventEmitterMixin
+from abb_042_driver.message import Message
+from abb_042_driver.protocol import WireProtocol
 
 try:
     import Queue as queue
@@ -181,7 +180,7 @@ class StreamingInterfaceConnection(object):
 class AbbStringServiceProvider(object):
     def __init__(self, service_name, streaming_interface, robot_state):
         rospy.logdebug('Starting string command service...')
-        self.service = rospy.Service(service_name, abb_042_driver.srv.AbbStringCommand, self.handle_service_call)
+        self.service = rospy.Service(service_name, srv.AbbStringCommand, self.handle_service_call)
         self.streaming_interface = streaming_interface
         self.robot_state = robot_state
 
@@ -202,7 +201,7 @@ class AbbStringServiceProvider(object):
             self.robot_state.on(message.key, abb_response_received)
             self.streaming_interface.execute_instruction(message)
             wait_event.wait(RESPONSE_TIMEOUT)
-            return abb_042_driver.srv.AbbStringCommandResponse(call_results['response'])
+            return srv.AbbStringCommandResponse(call_results['response'])
 
         # TODO: Disabled for now
         # elif 'instructions' in command:
