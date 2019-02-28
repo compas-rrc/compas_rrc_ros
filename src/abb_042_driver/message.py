@@ -50,6 +50,10 @@ class Message(object):
         self.string_values = string_values or []
         self.float_values = float_values or []
 
+    @property
+    def key(self):
+        return 'message:{}:{}'.format(self.instruction, self.sequence_id)
+
     @classmethod
     def from_data(cls, data):
         instruction = data['instruction'].encode('ascii')
@@ -67,6 +71,16 @@ class Message(object):
         float_values = data['values'] if 'values' in data else None
 
         return cls(instruction, exec_level, feedback_level, string_values, float_values)
+
+    def to_data(self):
+        return {
+            'sequence_id': self.sequence_id,
+            'exec_level': self.exec_level,
+            'feedback_level': self.feedback_level,
+            'instruction': self.instruction,
+            'string_values': self.string_values,
+            'float_values': self.float_values,
+        }
 
     @classmethod
     def from_buffer(cls, buffer):
