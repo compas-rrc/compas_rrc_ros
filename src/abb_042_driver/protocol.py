@@ -44,7 +44,7 @@ class WireProtocolVersion1(object):
 
         if current_items > cls.MAX_STRING_VALUES:
             raise ValueError('Protocol does not support more than ' +
-                             cls.MAX_STRING_VALUES + ' string values')
+                             str(cls.MAX_STRING_VALUES) + ' string values')
 
         # Append counter of string values
         payload_format += 'I'
