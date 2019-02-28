@@ -213,11 +213,12 @@ class AbbStringServiceProvider(object):
             raise ValueError('Unexpected command')
 
 
-if __name__ == '__main__':
+def main():
     import sys
     DEBUG = True
 
-    ROS_HOST = '127.0.0.1'
+    # ROS_HOST = '192.168.0.221'
+    # ABB_HOST = '192.168.125.21'
     ABB_HOST = '127.0.0.1'
 
     ROBOT_STREAMING_INTERFACE_PORT = 30003
@@ -226,9 +227,6 @@ if __name__ == '__main__':
 
     log_level = rospy.DEBUG if DEBUG else rospy.INFO
     rospy.init_node('abb_042_driver', log_level=log_level)
-
-    # ROS_HOST = '192.168.0.221'
-    # ABB_HOST = '192.168.125.21'
 
     if len(sys.argv) > 1:
         ABB_HOST = sys.argv[1]
@@ -252,7 +250,7 @@ if __name__ == '__main__':
             robot_state.on_message(message_tracing_output)
 
         if SERVICE_FORMAT == 'string':
-            service = AbbStringServiceProvider('abb_command', streaming_interface, robot_state)
+            AbbStringServiceProvider('abb_command', streaming_interface, robot_state)
         # TODO: Add AbbMessageCommand support
 
         rospy.spin()
@@ -266,3 +264,7 @@ if __name__ == '__main__':
             robot_state.disconnect()
 
     rospy.loginfo('Terminated')
+
+
+if __name__ == '__main__':
+    main()
