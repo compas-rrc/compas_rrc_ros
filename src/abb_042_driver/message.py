@@ -70,7 +70,7 @@ class Message(object):
         string_values = data['strings'] if 'strings' in data else None
         float_values = data['values'] if 'values' in data else None
 
-        return cls(instruction, exec_level, feedback_level, string_values, float_values)
+        return cls(instruction, sequence_id=None, exec_level=exec_level, feedback_level=feedback_level, string_values=string_values, float_values=float_values)
 
     def to_data(self):
         return {
@@ -81,7 +81,3 @@ class Message(object):
             'string_values': self.string_values,
             'float_values': self.float_values,
         }
-
-    @classmethod
-    def from_buffer(cls, buffer):
-        pass
