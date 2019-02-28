@@ -96,7 +96,7 @@ class WireProtocolVersion1(object):
         start_pos = 16
 
         # Read instruction
-        instruction = struct.unpack(cls.BYTE_ORDER + str(instruction_len) + 's', payload[start_pos:start_pos + instruction_len])
+        instruction, = struct.unpack(cls.BYTE_ORDER + str(instruction_len) + 's', payload[start_pos:start_pos + instruction_len])
         start_pos += instruction_len
 
         # Read string values
@@ -108,7 +108,7 @@ class WireProtocolVersion1(object):
         for _ in range(string_value_count):
             str_len, = struct.unpack(cls.BYTE_ORDER + 'I', payload[start_pos:start_pos + 4])
             start_pos += 4
-            string_value = struct.unpack(cls.BYTE_ORDER + str(str_len) + 's', payload[start_pos:start_pos + str_len])
+            string_value, = struct.unpack(cls.BYTE_ORDER + str(str_len) + 's', payload[start_pos:start_pos + str_len])
             string_values.append(string_value)
             start_pos += str_len
 
