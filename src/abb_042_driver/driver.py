@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import json
 import socket
 import threading
@@ -125,8 +126,6 @@ class StreamingInterfaceConnection(object):
         self.thread.start()
 
     def disconnect(self):
-        self.service.unadvertise()
-
         if self.is_running:
             self.is_running = False
 
