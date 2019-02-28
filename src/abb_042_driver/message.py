@@ -6,7 +6,7 @@ import threading
 import time
 
 __all__ = [
-    'AbbMessage'
+    'Message'
 ]
 
 
@@ -33,7 +33,7 @@ class SequenceCounter(object):
             return self._value
 
 
-class AbbMessage(object):
+class Message(object):
     counter = SequenceCounter()
 
     def __init__(self, instruction, sequence_id=None, exec_level=0, feedback_level=0, string_values=None, float_values=None):
@@ -43,7 +43,7 @@ class AbbMessage(object):
         self.nsec = int((ticks - int(ticks)) * 1000)
 
         # Payload fields
-        self.sequence_id = sequence_id or AbbMessage.counter.increment()
+        self.sequence_id = sequence_id or Message.counter.increment()
         self.instruction = instruction
         self.exec_level = exec_level
         self.feedback_level = feedback_level

@@ -3,7 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import struct
-from .message import AbbMessage
+from .message import Message
 
 __all__ = [
     'WireProtocol'
@@ -119,13 +119,13 @@ class WireProtocolVersion1(object):
         float_format = '%df' % float_value_count
         float_values = struct.unpack(cls.BYTE_ORDER + float_format, payload[start_pos:])
 
-        message = AbbMessage(instruction,
-                             exec_level,
-                             sequence_id,
-                             exec_level,
-                             feedback_level,
-                             string_values,
-                             float_values)
+        message = Message(instruction,
+                          exec_level,
+                          sequence_id,
+                          exec_level,
+                          feedback_level,
+                          string_values,
+                          float_values)
 
         return message
 
