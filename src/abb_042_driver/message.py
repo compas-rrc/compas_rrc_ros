@@ -52,7 +52,7 @@ class Message(object):
 
     @property
     def key(self):
-        return 'message:{}:{}'.format(self.instruction, self.sequence_id)
+        return 'msg:{}'.format(self.sequence_id)
 
     @classmethod
     def from_data(cls, data):
