@@ -5,8 +5,6 @@ from __future__ import print_function
 import threading
 import time
 
-from .protocol import WireProtocol
-
 __all__ = [
     'AbbMessage'
 ]
@@ -51,23 +49,6 @@ class AbbMessage(object):
         self.feedback_level = feedback_level
         self.string_values = string_values or []
         self.float_values = float_values or []
-        self._wire_message = None
-
-    def serialize(self):
-        """Serializes the current message into the wire format."""
-        header, payload = WireProtocol.serialize(self)
-        self._wire_message = header + payload
-
-    @property
-    def wire_message(self):
-        """Message serialized in the wire protocol.
-
-        This property is lazily evaluated, but a re-evaluation can
-        be forced by invoking the ``serialize`` method of this class."""
-        if not self._wire_message:
-            self.serialize()
-
-        return self._wire_message
 
     @classmethod
     def from_data(cls, data):

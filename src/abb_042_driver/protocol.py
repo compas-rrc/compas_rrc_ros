@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import struct
+from .message import AbbMessage
 
 __all__ = [
     'WireProtocol'
@@ -80,11 +81,53 @@ class WireProtocolVersion1(object):
         packed_header = struct.pack(
             cls.BYTE_ORDER + cls.HEADER_FORMAT, *header)
 
-        return (packed_header, packed_payload)
+        return packed_header + packed_payload
 
     @classmethod
     def deserialize(cls, header, payload):
-        pass
+        sequence_id, = struct.unpack(
+            cls.BYTE_ORDER + 'I', payload[0:4])
+        exec_level, = struct.unpack(
+            cls.BYTE_ORDER + 'I', payload[4:8])
+        feedback_level, = struct.unpack(
+            cls.BYTE_ORDER + 'I', payload[8:12])
+        instruction_len, = struct.unpack(
+            cls.BYTE_ORDER + 'I', payload[12:16])
+        start_pos = 16
+
+        # Read instruction
+        instruction = struct.unpack(cls.BYTE_ORDER + str(instruction_len) + 's', payload[start_pos:start_pos + instruction_len])
+        start_pos += instruction_len
+
+        # Read string values
+        string_values = []
+        string_value_count, = struct.unpack(
+            cls.BYTE_ORDER + 'I', payload[start_pos:start_pos + 4])
+        start_pos += 4
+
+        for _ in range(string_value_count):
+            str_len, = struct.unpack(cls.BYTE_ORDER + 'I', payload[start_pos:start_pos + 4])
+            start_pos += 4
+            string_value = struct.unpack(cls.BYTE_ORDER + str(str_len) + 's', payload[start_pos:start_pos + str_len])
+            string_values.append(string_value)
+            start_pos += str_len
+
+        # Read float values
+        float_value_count, = struct.unpack(cls.BYTE_ORDER + 'I', payload[start_pos:start_pos + 4])
+        float_value_count = int(float_value_count)
+        start_pos += 4
+        float_format = '%df' % float_value_count
+        float_values = struct.unpack(cls.BYTE_ORDER + float_format, payload[start_pos:])
+
+        message = AbbMessage(instruction,
+                             exec_level,
+                             sequence_id,
+                             exec_level,
+                             feedback_level,
+                             string_values,
+                             float_values)
+
+        return message
 
     def get_message_length(self, header):
         message_length, _, _, _ = struct.unpack(self.BYTE_ORDER + self.HEADER_FORMAT, header)
