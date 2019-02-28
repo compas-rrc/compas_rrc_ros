@@ -1,0 +1,5 @@
+pytest
+catkin_pkg
+flake8
+isort
+-e .
