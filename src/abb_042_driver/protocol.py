@@ -14,8 +14,9 @@ __all__ = [
 # Each protocol version has a class,
 # and we keep historical versions in code
 # in case we want to add backwards compat
-class WireProtocolVersion1(object):
-    VERSION = 1
+# Versions earlier than 4 were pre-release
+class WireProtocolVersion4(object):
+    VERSION = 4
     BYTE_ORDER = '<'
     FIXED_HEADER_LEN = 16
     HEADER_FORMAT = '4I'
@@ -30,14 +31,16 @@ class WireProtocolVersion1(object):
         instruction = cls.INSTRUCTION_PREFIX + message.instruction
         exec_level = message.exec_level
         feedback_level = message.feedback_level
+        feedback = message.feedback
+        feedback_id = message.feedback_id
         string_values = message.string_values
         float_values = message.float_values
         sec = message.sec
         nsec = message.nsec
 
         # Build command
-        payload_format = '4I%ds' % len(instruction)
-        payload = [message.sequence_id, exec_level, feedback_level, len(instruction), instruction, ]
+        payload_format = '4I{}sI{}sI'.format(len(instruction), len(feedback))
+        payload = [message.sequence_id, exec_level, feedback_level, len(instruction), instruction, len(feedback), feedback, feedback_id]
 
         # Build string values
         current_items = len(string_values)
@@ -75,9 +78,6 @@ class WireProtocolVersion1(object):
         message_length = len(packed_payload) + cls.FIXED_HEADER_LEN
         header = [message_length, cls.VERSION, sec, nsec]
 
-        # TODO: Remove once protocol is good
-        # LOG.debug('Header=%s, Payload=%s', str(header), str(payload))
-
         packed_header = struct.pack(
             cls.BYTE_ORDER + cls.HEADER_FORMAT, *header)
 
@@ -99,6 +99,18 @@ class WireProtocolVersion1(object):
         instruction, = struct.unpack(cls.BYTE_ORDER + str(instruction_len) + 's', payload[start_pos:start_pos + instruction_len])
         start_pos += instruction_len
 
+        # Read feedback message
+        feedback_len, = struct.unpack(
+            cls.BYTE_ORDER + 'I', payload[start_pos:start_pos + 4])
+        start_pos += 4
+        feedback, = struct.unpack(cls.BYTE_ORDER + str(feedback_len) + 's', payload[start_pos:start_pos + feedback_len])
+        start_pos += feedback_len
+
+        # Read feedback ID
+        feedback_id, = struct.unpack(
+            cls.BYTE_ORDER + 'I', payload[start_pos:start_pos + 4])
+        start_pos += 4
+
         # Read string values
         string_values = []
         string_value_count, = struct.unpack(
@@ -119,18 +131,18 @@ class WireProtocolVersion1(object):
         float_format = '%df' % float_value_count
         float_values = struct.unpack(cls.BYTE_ORDER + float_format, payload[start_pos:])
 
-        message = Message(instruction,
-                          sequence_id=sequence_id,
-                          exec_level=exec_level,
-                          feedback_level=feedback_level,
-                          string_values=string_values,
-                          float_values=float_values)
-
-        return message
+        return Message(instruction,
+                       sequence_id=None,
+                       feedback=feedback,
+                       feedback_id=feedback_id,
+                       exec_level=exec_level,
+                       feedback_level=feedback_level,
+                       string_values=string_values,
+                       float_values=float_values)
 
     def get_message_length(self, header):
         message_length, _, _, _ = struct.unpack(self.BYTE_ORDER + self.HEADER_FORMAT, header)
         return message_length
 
 
-WireProtocol = WireProtocolVersion1()
+WireProtocol = WireProtocolVersion4()

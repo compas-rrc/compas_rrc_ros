@@ -86,7 +86,7 @@ class RobotStateConnection(EventEmitterMixin):
                             message = WireProtocol.deserialize(current_header, current_payload)
                             # Emit global and individual events
                             self.emit('message', message)
-                            self.emit(message.key, message)
+                            self.emit(message.response_key, message)
                             current_payload = b''
 
                     except Exception as me:

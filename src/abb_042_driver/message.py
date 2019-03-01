@@ -36,7 +36,7 @@ class SequenceCounter(object):
 class Message(object):
     counter = SequenceCounter()
 
-    def __init__(self, instruction, sequence_id=None, exec_level=0, feedback_level=0, string_values=None, float_values=None):
+    def __init__(self, instruction, sequence_id=None, feedback=None, feedback_id=0, exec_level=0, feedback_level=0, string_values=None, float_values=None):
         # Header fields
         ticks = time.time()
         self.sec = int(ticks)
@@ -45,6 +45,8 @@ class Message(object):
         # Payload fields
         self.sequence_id = sequence_id or Message.counter.increment()
         self.instruction = instruction
+        self.feedback = feedback
+        self.feedback_id = feedback_id
         self.exec_level = exec_level
         self.feedback_level = feedback_level
         self.string_values = string_values or []
@@ -52,13 +54,21 @@ class Message(object):
 
     @property
     def key(self):
+        """Message keys uniquely identify a specific message."""
         return 'msg:{}'.format(self.sequence_id)
+
+    @property
+    def response_key(self):
+        """Response key of a message is matches the key of a request message,
+        i.e. it contains the sequence ID of the message that originated the response."""
+        return 'msg:{}'.format(self.feedback_id)
 
     @classmethod
     def from_data(cls, data):
         instruction = data['instruction'].encode('ascii')
+        feedback = data['feedback'].encode('ascii') if 'feedback' in data else None
+        feedback_id = int(data['feedback_id']) if 'feedback_id' in data else 0
 
-        # Build payload
         exec_level = 0
         if 'exec_level' in data:
             exec_level = int(data['exec_level'])
@@ -70,15 +80,24 @@ class Message(object):
         string_values = data['strings'] if 'strings' in data else None
         float_values = data['values'] if 'values' in data else None
 
-        return cls(instruction, sequence_id=None, exec_level=exec_level, feedback_level=feedback_level, string_values=string_values, float_values=float_values)
+        return cls(instruction,
+                   sequence_id=None,
+                   feedback=feedback,
+                   feedback_id=feedback_id,
+                   exec_level=exec_level,
+                   feedback_level=feedback_level,
+                   string_values=string_values,
+                   float_values=float_values)
 
     def to_data(self):
         return {
             'key': self.key,
+            'instruction': self.instruction,
             'sequence_id': self.sequence_id,
+            'feedback': self.feedback,
+            'feedback_id': self.feedback_id,
             'exec_level': self.exec_level,
             'feedback_level': self.feedback_level,
-            'instruction': self.instruction,
             'string_values': self.string_values,
             'float_values': self.float_values,
         }
