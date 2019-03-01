@@ -31,7 +31,7 @@ class WireProtocolVersion4(object):
         instruction = cls.INSTRUCTION_PREFIX + message.instruction
         exec_level = message.exec_level
         feedback_level = message.feedback_level
-        feedback = message.feedback
+        feedback = message.feedback or ''
         feedback_id = message.feedback_id
         string_values = message.string_values
         float_values = message.float_values

@@ -209,18 +209,12 @@ class AbbStringServiceProvider(object):
             message = Message.from_data(command)
             self.robot_state.on(message.key, abb_response_received)
             self.streaming_interface.execute_instruction(message)
+            wait_event.wait()
 
-            response_data = ''
+            if 'response' not in call_results:
+                raise Exception('Service response missing: result=%s' % str(call_results))
 
-            if message.feedback_level > 0:
-                wait_event.wait()
-
-                if 'response' not in call_results:
-                    raise Exception('Service response missing: result=%s' % str(call_results))
-
-                response_data = call_results['response']
-
-            return srv.AbbStringCommandResponse(response_data)
+            return srv.AbbStringCommandResponse(call_results['response'])
 
         # TODO: Disabled for now
         # elif 'instructions' in command:
