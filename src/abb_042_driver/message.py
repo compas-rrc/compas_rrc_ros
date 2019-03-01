@@ -74,6 +74,7 @@ class Message(object):
 
     def to_data(self):
         return {
+            'key': self.key,
             'sequence_id': self.sequence_id,
             'exec_level': self.exec_level,
             'feedback_level': self.feedback_level,

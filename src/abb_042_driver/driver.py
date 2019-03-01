@@ -89,6 +89,9 @@ class RobotStateConnection(EventEmitterMixin):
                             self.emit(message.key, message)
                             current_payload = b''
 
+                    except Exception as me:
+                        rospy.logerr('Exception while recv/deserialization of a message, skipping message. Exception=%s', str(me))
+                        current_payload = b''
                     finally:
                         # Ready for next
                         current_header = b''
@@ -99,8 +102,8 @@ class RobotStateConnection(EventEmitterMixin):
                 rospy.loginfo('Disconnection detected, waiting %d sec before reconnect...', RECONNECT_DELAY)
                 time.sleep(RECONNECT_DELAY)
                 self._connect_socket()
-            except Exception:
-                rospy.logerr('Robot state socket failed')
+            except Exception as e:
+                rospy.logerr(e)
                 break
 
         rospy.loginfo('Robot state socket worker stopping...')
@@ -192,16 +195,25 @@ class AbbStringServiceProvider(object):
         call_results = {}
 
         def abb_response_received(response_message):
-            call_results['response'] = json.dumps(response_message.to_data())
-            wait_event.set()
+            try:
+                rospy.logdebug('Received response message: key=%s', response_message.key)
+                call_results['response'] = json.dumps(response_message.to_data())
+            except Exception as e:
+                rospy.logerr('Error while receiving response message: %s', str(e))
+                call_results['exception'] = str(e)
+            finally:
+                wait_event.set()
 
         # Command might be a single instruction or a list of them
         if 'instruction' in command:
             message = Message.from_data(command)
             self.robot_state.on(message.key, abb_response_received)
             self.streaming_interface.execute_instruction(message)
-            wait_event.wait(RESPONSE_TIMEOUT)
-            rospy.loginfo('DEBUG results: %s', str(call_results))
+            wait_event.wait()
+
+            if 'response' in call_results:
+                raise Exception('Service response missing: result=%s' % str(call_results))
+
             return srv.AbbStringCommandResponse(call_results['response'])
 
         # TODO: Disabled for now
@@ -243,9 +255,7 @@ def main():
 
         if DEBUG:
             def message_tracing_output(message):
-                rospy.logdebug('MESSAGE: sec=%d, nsec=%d, Sequence id: %s, Exec level: %s, Feedback level: %s, Instruction: %s',
-                               message.sec, message.nsec, str(message.sequence_id), str(message.exec_level), str(message.feedback_level), message.instruction)
-                rospy.logdebug('MESSAGE (contd) Strings: %s, Floats: %s', str(message.string_values), str(message.float_values))
+                rospy.logdebug('Message received: %s', str(message.to_data()))
 
             robot_state.on_message(message_tracing_output)
 
