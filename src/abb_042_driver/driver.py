@@ -177,9 +177,11 @@ class StreamingInterfaceConnection(object):
                 else:
                     rospy.logdebug('Executing: "%s"\n        with content: %s', message.instruction, str(message.to_data()))
                     wire_message = WireProtocol.serialize(message)
-                    self.socket.send(wire_message)
-                    # TODO: Lower to debug level
-                    rospy.loginfo('Sent message with length=%d', len(wire_message))
+                    sent_bytes = self.socket.send(wire_message)
+                    if sent_bytes == 0:
+                        raise Exception('Socket connection broken')
+
+                    # rospy.loginfo('Sent message with length=%d', len(wire_message))
             except queue.Empty:
                 pass
             except Exception as e:
