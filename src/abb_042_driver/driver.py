@@ -47,9 +47,7 @@ class RobotStateConnection(EventEmitterMixin):
 
     def _connect_socket(self):
         rospy.loginfo('Robot state: Connecting socket %s:%d', self.host, self.port)
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.settimeout(CONNECTION_TIMEOUT)
-        self.socket.connect((self.host, self.port))
+        self.socket = socket.create_connection((self.host, self.port), CONNECTION_TIMEOUT)
         rospy.loginfo('Robot state: Socket connected')
 
     def _disconnect_socket(self):
@@ -143,9 +141,7 @@ class StreamingInterfaceConnection(object):
 
     def _connect_socket(self):
         rospy.loginfo('Streaming interface: Connecting socket %s:%d', self.host, self.port)
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.settimeout(CONNECTION_TIMEOUT)
-        self.socket.connect((self.host, self.port))
+        self.socket = socket.create_connection((self.host, self.port), CONNECTION_TIMEOUT)
         rospy.loginfo('Streaming interface: Socket connected')
 
     def _disconnect_socket(self):
