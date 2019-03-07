@@ -50,6 +50,7 @@ class RobotStateConnection(EventEmitterMixin):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.settimeout(CONNECTION_TIMEOUT)
         self.socket.connect((self.host, self.port))
+        rospy.loginfo('Connected to robot state socket')
 
     def _disconnect_socket(self):
         rospy.loginfo('Disconnecting robot state socket')
@@ -143,6 +144,7 @@ class StreamingInterfaceConnection(object):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.settimeout(CONNECTION_TIMEOUT)
         self.socket.connect((self.host, self.port))
+        rospy.logdebug('Connected to interface streaming socket')
 
     def _disconnect_socket(self):
         rospy.logdebug('Disconnecting interface streaming socket')
@@ -183,8 +185,6 @@ def main():
 
     ABB_HOST_DEFAULT = '127.0.0.1'
 
-    ABB_STREAMING_PORT_DEFAULT = 30003
-    ABB_STATE_PORT_DEFAULT = 30004
     SERVICE_FORMAT = 'string'
     TOPIC_FORMAT = 'message'
 
@@ -192,8 +192,8 @@ def main():
     rospy.init_node('abb_042_driver', log_level=log_level)
 
     abb_host = rospy.get_param('robot_ip_address', ABB_HOST_DEFAULT)
-    abb_streaming_port = rospy.get_param('streaming_interface_port', ABB_STREAMING_PORT_DEFAULT)
-    abb_state_port = rospy.get_param('state_interface_port', ABB_STATE_PORT_DEFAULT)
+    abb_streaming_port = rospy.get_param('robot_streaming_port')
+    abb_state_port = rospy.get_param('robot_state_port')
 
     streaming_interface = None
     robot_state = None
