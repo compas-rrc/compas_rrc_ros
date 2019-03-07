@@ -4,7 +4,7 @@ from abb_042_driver.message import Message
 
 
 class AbbMessageTopicProvider(object):
-    def __init__(self, topic_name, streaming_interface, robot_state):
+    def __init__(self, topic_name, streaming_interface):
         super(AbbMessageTopicProvider, self).__init__()
 
         rospy.logdebug('Subscribing to message topic %s...', topic_name)
