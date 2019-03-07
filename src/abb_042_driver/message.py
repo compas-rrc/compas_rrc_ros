@@ -88,8 +88,8 @@ class Message(object):
         if 'feedback_level' in data:
             feedback_level = int(data['feedback_level'])
 
-        string_values = data['strings'] if 'strings' in data else None
-        float_values = data['values'] if 'values' in data else None
+        string_values = data['string_values'] if 'string_values' in data else None
+        float_values = data['float_values'] if 'float_values' in data else None
 
         return cls(instruction,
                    sequence_id=None,
