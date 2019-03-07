@@ -9,15 +9,15 @@ def test_thread_safety():
     threads = []
 
     def incrementor():
-      for _ in range(100000):
-        counter.increment()
+        for _ in range(100000):
+            counter.increment()
 
     for _ in range(4):
-      thread = threading.Thread(target=incrementor)
-      thread.start()
-      threads.append(thread)
+        thread = threading.Thread(target=incrementor)
+        thread.start()
+        threads.append(thread)
 
     for thread in threads:
-      thread.join()
+        thread.join()
 
     assert counter.value == 400000
