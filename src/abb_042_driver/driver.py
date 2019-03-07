@@ -102,7 +102,7 @@ class RobotStateConnection(EventEmitterMixin):
                 time.sleep(RECONNECT_DELAY)
                 self._connect_socket()
             except Exception as e:
-                rospy.logerr(e)
+                rospy.signal_shutdown('Exception on state interface socket: {}'.format(str(e)))
                 break
 
         rospy.loginfo('Robot state socket worker stopping...')
@@ -177,6 +177,9 @@ class StreamingInterfaceConnection(object):
                     self.socket.send(WireProtocol.serialize(message))
             except queue.Empty:
                 pass
+            except Exception as e:
+                rospy.signal_shutdown('Exception on streaming interface socket: {}'.format(str(e)))
+                break
         rospy.loginfo('Interface streaming socket worker stopping...')
 
 
