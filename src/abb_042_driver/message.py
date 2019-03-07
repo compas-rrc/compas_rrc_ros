@@ -64,6 +64,17 @@ class Message(object):
         return 'msg:{}'.format(self.feedback_id)
 
     @classmethod
+    def from_ros_message(cls, ros_message):
+        return cls(ros_message.instruction,
+                   sequence_id=ros_message.sequence_id,
+                   feedback=ros_message.feedback,
+                   feedback_id=ros_message.feedback_id,
+                   exec_level=ros_message.exec_level,
+                   feedback_level=ros_message.feedback_level,
+                   string_values=ros_message.string_values,
+                   float_values=ros_message.float_values)
+
+    @classmethod
     def from_data(cls, data):
         instruction = data['instruction'].encode('ascii')
         feedback = data['feedback'].encode('ascii') if 'feedback' in data else None

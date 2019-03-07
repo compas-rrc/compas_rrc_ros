@@ -7,6 +7,7 @@ import rospy
 from abb_042_driver.event_emitter import EventEmitterMixin
 from abb_042_driver.protocol import WireProtocol
 from abb_042_driver.services import AbbStringServiceProvider
+from abb_042_driver.topics import AbbMessageTopicProvider
 
 try:
     import Queue as queue
@@ -187,6 +188,7 @@ def main():
     ROBOT_STREAMING_INTERFACE_PORT = 30003
     ROBOT_STATE_PORT = 30004
     SERVICE_FORMAT = 'string'
+    TOPIC_FORMAT = 'message'
 
     log_level = rospy.DEBUG if DEBUG else rospy.INFO
     rospy.init_node('abb_042_driver', log_level=log_level)
@@ -211,9 +213,11 @@ def main():
 
             robot_state.on_message(message_tracing_output)
 
+        # TODO: Add support for AbbMessageCommand service
         if SERVICE_FORMAT == 'string':
             AbbStringServiceProvider('abb_command', streaming_interface, robot_state)
-        # TODO: Add AbbMessageCommand support
+        if TOPIC_FORMAT == 'message':
+            AbbMessageTopicProvider('abb_command', streaming_interface)
 
         rospy.spin()
     finally:
