@@ -22,13 +22,10 @@ class WireProtocolVersion4(object):
     HEADER_FORMAT = '4I'
     MAX_STRING_VALUES = 5
     MAX_FLOAT_VALUES = 30
-    INSTRUCTION_PREFIX = b'r_A042_'
 
     @classmethod
     def serialize(cls, message):
-        # The instruction prefix allows
-        # splitting instructions that are generic vs project-specific
-        instruction = cls.INSTRUCTION_PREFIX + message.instruction
+        instruction = message.instruction
         exec_level = message.exec_level
         feedback_level = message.feedback_level
         feedback = message.feedback or ''
