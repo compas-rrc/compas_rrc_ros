@@ -72,8 +72,6 @@ class RobotStateConnection(EventEmitterMixin):
                 if len(current_header) == WireProtocol.FIXED_HEADER_LEN:
                     try:
                         message_length = WireProtocol.get_message_length(current_header)
-                        # message_length, protocol_version, sec, nsec = struct.unpack(WireProtocol.BYTE_ORDER + WireProtocol.HEADER_FORMAT, current_header)
-                        # rospy.logdebug('HEADER: message_length=%d, protocol_version=%d, sec=%d, nsec=%d', message_length, protocol_version, sec, nsec)
 
                         chunk = self.socket.recv(1024)
                         if not chunk:
@@ -96,6 +94,8 @@ class RobotStateConnection(EventEmitterMixin):
                         current_header = b''
 
             except socket.timeout:
+                # The socket has a timeout, so that it does not block on recv()
+                # If it times out, it's ok, we just continue and re-start receiving
                 pass
             except socket.error:  # Python 3 would probably be ConnectionResetError
                 rospy.loginfo('Disconnection detected, waiting %d sec before reconnect...', RECONNECT_DELAY)
@@ -176,7 +176,10 @@ class StreamingInterfaceConnection(object):
                     break
                 else:
                     rospy.logdebug('Executing: "%s"\n        with content: %s', message.instruction, str(message.to_data()))
-                    self.socket.send(WireProtocol.serialize(message))
+                    wire_message = WireProtocol.serialize(message)
+                    self.socket.send(wire_message)
+                    # TODO: Lower to debug level
+                    rospy.loginfo('Sent message with length=%d', len(wire_message))
             except queue.Empty:
                 pass
             except Exception as e:
