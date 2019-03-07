@@ -183,24 +183,27 @@ def main():
 
     ABB_HOST_DEFAULT = '127.0.0.1'
 
-    ROBOT_STREAMING_INTERFACE_PORT = 30003
-    ROBOT_STATE_PORT = 30004
+    ABB_STREAMING_PORT_DEFAULT = 30003
+    ABB_STATE_PORT_DEFAULT = 30004
     SERVICE_FORMAT = 'string'
     TOPIC_FORMAT = 'message'
 
     log_level = rospy.DEBUG if DEBUG else rospy.INFO
     rospy.init_node('abb_042_driver', log_level=log_level)
+
     abb_host = rospy.get_param('robot_ip_address', ABB_HOST_DEFAULT)
+    abb_streaming_port = rospy.get_param('streaming_interface_port', ABB_STREAMING_PORT_DEFAULT)
+    abb_state_port = rospy.get_param('state_interface_port', ABB_STATE_PORT_DEFAULT)
 
     streaming_interface = None
     robot_state = None
 
     try:
         rospy.loginfo('Connecting robot %s...', abb_host)
-        streaming_interface = StreamingInterfaceConnection(abb_host, ROBOT_STREAMING_INTERFACE_PORT)
+        streaming_interface = StreamingInterfaceConnection(abb_host, abb_streaming_port)
         streaming_interface.connect()
 
-        robot_state = RobotStateConnection(abb_host, ROBOT_STATE_PORT)
+        robot_state = RobotStateConnection(abb_host, abb_state_port)
         robot_state.connect()
 
         if DEBUG:
