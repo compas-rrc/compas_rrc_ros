@@ -181,8 +181,6 @@ class StreamingInterfaceConnection(object):
 def main():
     DEBUG = False
 
-    # ROS_HOST = '192.168.0.221'
-    # ABB_HOST = '192.168.125.21'
     ABB_HOST_DEFAULT = '127.0.0.1'
 
     ROBOT_STREAMING_INTERFACE_PORT = 30003
@@ -198,8 +196,6 @@ def main():
     robot_state = None
 
     try:
-        # topic = roslibpy.Topic(ros, '/robot_state', 'std_msgs/String') # sensor_msgs/JointState
-
         rospy.loginfo('Connecting robot %s...', abb_host)
         streaming_interface = StreamingInterfaceConnection(abb_host, ROBOT_STREAMING_INTERFACE_PORT)
         streaming_interface.connect()
