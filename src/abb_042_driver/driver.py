@@ -46,19 +46,19 @@ class RobotStateConnection(EventEmitterMixin):
         self._disconnect_socket()
 
     def _connect_socket(self):
-        rospy.loginfo('Connecting robot state socket: %s:%d', self.host, self.port)
+        rospy.loginfo('Robot state: Connecting socket %s:%d', self.host, self.port)
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.settimeout(CONNECTION_TIMEOUT)
         self.socket.connect((self.host, self.port))
-        rospy.loginfo('Connected to robot state socket')
+        rospy.loginfo('Robot state: Socket connected')
 
     def _disconnect_socket(self):
-        rospy.loginfo('Disconnecting robot state socket')
+        rospy.loginfo('Robot state: Disconnecting socket')
         if self.socket:
             self.socket.close()
 
     def socket_worker(self):
-        rospy.loginfo('Starting robot state socket worker')
+        rospy.loginfo('Robot state: Worker started')
         current_header = b''
         current_payload = b''
 
@@ -96,16 +96,21 @@ class RobotStateConnection(EventEmitterMixin):
                         current_header = b''
 
             except socket.timeout:
-                pass
+                error_message = 'Robot state: Socket timeout'
+                rospy.logerr(error_message)
+                rospy.signal_shutdown(error_message)
+                break
             except socket.error:  # Python 3 would probably be ConnectionResetError
                 rospy.loginfo('Disconnection detected, waiting %d sec before reconnect...', RECONNECT_DELAY)
                 time.sleep(RECONNECT_DELAY)
                 self._connect_socket()
             except Exception as e:
-                rospy.signal_shutdown('Exception on state interface socket: {}'.format(str(e)))
+                error_message = 'Exception on robot state interface: {}'.format(str(e))
+                rospy.logerr(error_message)
+                rospy.signal_shutdown(error_message)
                 break
 
-        rospy.loginfo('Robot state socket worker stopping...')
+        rospy.loginfo('Robot state: Worker stopped')
 
 
 class StreamingInterfaceConnection(object):
@@ -140,14 +145,14 @@ class StreamingInterfaceConnection(object):
         self._disconnect_socket()
 
     def _connect_socket(self):
-        rospy.logdebug('Connecting interface streaming socket: %s:%d', self.host, self.port)
+        rospy.loginfo('Streaming interface: Connecting socket %s:%d', self.host, self.port)
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.settimeout(CONNECTION_TIMEOUT)
         self.socket.connect((self.host, self.port))
-        rospy.logdebug('Connected to interface streaming socket')
+        rospy.loginfo('Streaming interface: Socket connected')
 
     def _disconnect_socket(self):
-        rospy.logdebug('Disconnecting interface streaming socket')
+        rospy.loginfo('Streaming interface: Disconnecting socket')
         if self.socket:
             self.socket.close()
 
@@ -161,7 +166,7 @@ class StreamingInterfaceConnection(object):
         self.queue.put(message)
 
     def socket_worker(self):
-        rospy.loginfo('Starting interface streaming socket worker')
+        rospy.loginfo('Streaming interface: Worker started')
         while self.is_running:
             try:
                 message = self.queue.get(True, QUEUE_TIMEOUT)
@@ -178,9 +183,11 @@ class StreamingInterfaceConnection(object):
             except queue.Empty:
                 pass
             except Exception as e:
-                rospy.signal_shutdown('Exception on streaming interface socket: {}'.format(str(e)))
+                error_message = 'Exception on streaming interface worker: {}'.format(str(e))
+                rospy.logerr(error_message)
+                rospy.signal_shutdown(error_message)
                 break
-        rospy.loginfo('Interface streaming socket worker stopping...')
+        rospy.loginfo('Streaming interface: Worker stopped')
 
 
 def main():
@@ -202,7 +209,7 @@ def main():
     robot_state = None
 
     try:
-        rospy.loginfo('Connecting robot %s...', abb_host)
+        rospy.loginfo('Connecting robot %s (ports %d & %d)', abb_host, abb_streaming_port, abb_state_port)
         streaming_interface = StreamingInterfaceConnection(abb_host, abb_streaming_port)
         streaming_interface.connect()
 
