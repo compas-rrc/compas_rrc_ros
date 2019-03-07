@@ -179,7 +179,7 @@ class StreamingInterfaceConnection(object):
 
 
 def main():
-    DEBUG = True
+    DEBUG = False
 
     # ROS_HOST = '192.168.0.221'
     # ABB_HOST = '192.168.125.21'
