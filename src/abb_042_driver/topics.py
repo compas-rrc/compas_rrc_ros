@@ -7,8 +7,10 @@ class AbbMessageTopicProvider(object):
     def __init__(self, topic_name, streaming_interface):
         super(AbbMessageTopicProvider, self).__init__()
 
-        rospy.logdebug('Subscribing to message topic %s...', topic_name)
+        self.streaming_interface = streaming_interface
         self.topic = rospy.Subscriber(topic_name, msg.AbbMessage, self.callback)
+
+        rospy.logdebug('Subscribed to message topic %s...', topic_name)
 
     def callback(self, ros_message):
         message = Message.from_ros_message(ros_message)

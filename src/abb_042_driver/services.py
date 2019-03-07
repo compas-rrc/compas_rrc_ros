@@ -16,8 +16,9 @@ class AbbBaseServiceProvider(object):
 class AbbMessageServiceProvider(AbbBaseServiceProvider):
     def __init__(self, service_name, streaming_interface, robot_state):
         super(AbbMessageServiceProvider, self).__init__(streaming_interface, robot_state)
-        rospy.logdebug('Starting message command service...')
         self.service = rospy.Service(service_name, srv.AbbMessageCommand, self.handle_service_call)
+
+        rospy.logdebug('Started message command service...')
 
     def handle_service_call(self, request):
         raise NotImplementedError()
@@ -26,9 +27,9 @@ class AbbMessageServiceProvider(AbbBaseServiceProvider):
 class AbbStringServiceProvider(AbbBaseServiceProvider):
     def __init__(self, service_name, streaming_interface, robot_state):
         super(AbbStringServiceProvider, self).__init__(streaming_interface, robot_state)
-
-        rospy.logdebug('Starting string command service...')
         self.service = rospy.Service(service_name, srv.AbbStringCommand, self.handle_service_call)
+
+        rospy.logdebug('Started string command service...')
 
     def handle_service_call(self, request):
         # String command handler assumes the string is JSON encoded
