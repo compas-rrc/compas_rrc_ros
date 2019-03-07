@@ -15,7 +15,6 @@ except ImportError:
     import queue
 
 CONNECTION_TIMEOUT = 5          # In seconds
-RESPONSE_TIMEOUT = 5            # In seconds
 QUEUE_TIMEOUT = 5               # In seconds
 RECONNECT_DELAY = 3             # In seconds
 QUEUE_TERMINATION_TOKEN = None
