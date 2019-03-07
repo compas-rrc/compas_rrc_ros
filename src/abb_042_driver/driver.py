@@ -96,10 +96,7 @@ class RobotStateConnection(EventEmitterMixin):
                         current_header = b''
 
             except socket.timeout:
-                error_message = 'Robot state: Socket timeout'
-                rospy.logerr(error_message)
-                rospy.signal_shutdown(error_message)
-                break
+                pass
             except socket.error:  # Python 3 would probably be ConnectionResetError
                 rospy.loginfo('Disconnection detected, waiting %d sec before reconnect...', RECONNECT_DELAY)
                 time.sleep(RECONNECT_DELAY)
