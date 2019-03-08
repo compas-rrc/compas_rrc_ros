@@ -22,13 +22,12 @@ message AbbMessage {
 
   fixed32 sequence_id = 1;
   ExecLevel exec_level = 2;
-  FeedbackLevel feedback_level = 3;
-  fixed32 feedback_len = 4;
-  string feedback = 5;
-  fixed32 feedback_id = 6;
-
-  fixed32 instruction_len = 7;
-  string instruction = 8;
+  fixed32 instruction_len = 3;
+  string instruction = 4;
+  FeedbackLevel feedback_level = 5;
+  fixed32 feedback_len = 6;
+  string feedback = 7;
+  fixed32 feedback_id = 8;
 
   fixed32 str_count = 9;
 

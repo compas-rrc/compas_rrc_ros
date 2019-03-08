@@ -36,8 +36,8 @@ class WireProtocolVersion4(object):
         nsec = message.nsec
 
         # Build command
-        payload_format = '4I{}sI{}sI'.format(len(instruction), len(feedback))
-        payload = [message.sequence_id, exec_level, feedback_level, len(instruction), instruction, len(feedback), feedback, feedback_id]
+        payload_format = '3I{}s2I{}sI'.format(len(instruction), len(feedback))
+        payload = [message.sequence_id, exec_level, len(instruction), instruction, feedback_level, len(feedback), feedback, feedback_id]
 
         # Build string values
         current_items = len(string_values)
@@ -86,17 +86,18 @@ class WireProtocolVersion4(object):
             cls.BYTE_ORDER + 'I', payload[0:4])
         exec_level, = struct.unpack(
             cls.BYTE_ORDER + 'I', payload[4:8])
-        feedback_level, = struct.unpack(
-            cls.BYTE_ORDER + 'I', payload[8:12])
         instruction_len, = struct.unpack(
-            cls.BYTE_ORDER + 'I', payload[12:16])
-        start_pos = 16
+            cls.BYTE_ORDER + 'I', payload[8:12])
+        start_pos = 12
 
         # Read instruction
         instruction, = struct.unpack(cls.BYTE_ORDER + str(instruction_len) + 's', payload[start_pos:start_pos + instruction_len])
         start_pos += instruction_len
 
         # Read feedback message
+        feedback_level, = struct.unpack(
+            cls.BYTE_ORDER + 'I', payload[start_pos:start_pos + 4])
+        start_pos += 4
         feedback_len, = struct.unpack(
             cls.BYTE_ORDER + 'I', payload[start_pos:start_pos + 4])
         start_pos += 4
@@ -130,10 +131,10 @@ class WireProtocolVersion4(object):
 
         return Message(instruction,
                        sequence_id=None,
-                       feedback=feedback,
-                       feedback_id=feedback_id,
                        exec_level=exec_level,
                        feedback_level=feedback_level,
+                       feedback=feedback,
+                       feedback_id=feedback_id,
                        string_values=string_values,
                        float_values=float_values)
 

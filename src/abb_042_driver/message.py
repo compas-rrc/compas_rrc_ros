@@ -44,11 +44,11 @@ class Message(object):
 
         # Payload fields
         self.sequence_id = sequence_id or Message.counter.increment()
+        self.exec_level = exec_level
         self.instruction = instruction
+        self.feedback_level = feedback_level
         self.feedback = feedback
         self.feedback_id = feedback_id
-        self.exec_level = exec_level
-        self.feedback_level = feedback_level
         self.string_values = string_values or []
         self.float_values = float_values or []
 
@@ -67,10 +67,10 @@ class Message(object):
     def from_ros_message(cls, ros_message):
         return cls(ros_message.instruction,
                    sequence_id=ros_message.sequence_id,
-                   feedback=ros_message.feedback,
-                   feedback_id=ros_message.feedback_id,
                    exec_level=ros_message.exec_level,
                    feedback_level=ros_message.feedback_level,
+                   feedback=ros_message.feedback,
+                   feedback_id=ros_message.feedback_id,
                    string_values=ros_message.string_values,
                    float_values=ros_message.float_values)
 
@@ -93,10 +93,10 @@ class Message(object):
 
         return cls(instruction,
                    sequence_id=None,
-                   feedback=feedback,
-                   feedback_id=feedback_id,
                    exec_level=exec_level,
                    feedback_level=feedback_level,
+                   feedback=feedback,
+                   feedback_id=feedback_id,
                    string_values=string_values,
                    float_values=float_values)
 
@@ -105,10 +105,10 @@ class Message(object):
             'key': self.key,
             'instruction': self.instruction,
             'sequence_id': self.sequence_id,
-            'feedback': self.feedback,
-            'feedback_id': self.feedback_id,
             'exec_level': self.exec_level,
             'feedback_level': self.feedback_level,
+            'feedback': self.feedback,
+            'feedback_id': self.feedback_id,
             'string_values': self.string_values,
             'float_values': self.float_values,
         }
