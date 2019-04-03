@@ -132,7 +132,7 @@ class WireProtocolVersion4(object):
         float_format = '%df' % float_value_count
         float_values = struct.unpack(cls.BYTE_ORDER + float_format, payload[start_pos:])
 
-        return msg.AbbMessage(instruction,
+        return msg.AbbMessage(instruction=instruction,
                               sequence_id=sequence_id,
                               exec_level=exec_level,
                               feedback_level=feedback_level,
