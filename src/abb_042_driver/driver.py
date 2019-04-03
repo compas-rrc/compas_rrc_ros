@@ -223,7 +223,7 @@ def main():
         if SERVICE_FORMAT == 'string':
             AbbStringServiceProvider('abb_command', streaming_interface, robot_state)
         if TOPIC_FORMAT == 'message':
-            AbbMessageTopicProvider('abb_command', streaming_interface)
+            AbbMessageTopicProvider('abb_command', 'abb_response', streaming_interface, robot_state)
 
         rospy.spin()
     finally:

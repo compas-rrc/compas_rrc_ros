@@ -74,6 +74,16 @@ class Message(object):
                    string_values=ros_message.string_values,
                    float_values=ros_message.float_values)
 
+    def to_ros_message(self, ros_cls):
+        return ros_cls(instruction=self.instruction,
+                       sequence_id=self.sequence_id,
+                       exec_level=self.exec_level,
+                       feedback_level=self.feedback_level,
+                       feedback=self.feedback,
+                       feedback_id=self.feedback_id,
+                       string_values=self.string_values,
+                       float_values=self.float_values)
+
     @classmethod
     def from_data(cls, data):
         instruction = data['instruction'].encode('ascii')
