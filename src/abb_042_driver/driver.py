@@ -170,7 +170,7 @@ class StreamingInterfaceConnection(object):
                     # self.socket.send(SOCKET_CLOSE_COMMAND)
                     break
                 else:
-                    rospy.logdebug('Executing: "%s"\n        with content: %s', message.instruction, str(message.to_data()))
+                    rospy.logdebug('Executing: "%s"\n        with content: %s', message.instruction, str(message))
                     wire_message = WireProtocol.serialize(message)
                     sent_bytes = self.socket.send(wire_message)
                     if sent_bytes == 0:
@@ -215,7 +215,7 @@ def main():
 
         if DEBUG:
             def message_tracing_output(message):
-                rospy.logdebug('Message received: %s', str(message.to_data()))
+                rospy.logdebug('Message received: %s', str(message))
 
             robot_state.on_message(message_tracing_output)
 
