@@ -2,7 +2,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import threading
 import time
 
 __all__ = [
@@ -10,32 +9,7 @@ __all__ = [
 ]
 
 
-class SequenceCounter(object):
-    """An atomic, thread-safe sequence increament counter."""
-
-    def __init__(self, start=0):
-        """Initialize a new counter to given initial value."""
-        self._lock = threading.Lock()
-        self._value = start
-
-    def increment(self, num=1):
-        """Atomically increment the counter by ``num`` and
-        return the new value.
-        """
-        with self._lock:
-            self._value += num
-            return self._value
-
-    @property
-    def value(self):
-        """Current sequence counter."""
-        with self._lock:
-            return self._value
-
-
 class Message(object):
-    counter = SequenceCounter()
-
     def __init__(self, instruction, sequence_id=None, feedback=None, feedback_id=0, exec_level=0, feedback_level=0, string_values=None, float_values=None):
         # Header fields
         ticks = time.time()
@@ -43,7 +17,7 @@ class Message(object):
         self.nsec = int((ticks - int(ticks)) * 1000)
 
         # Payload fields
-        self.sequence_id = sequence_id or Message.counter.increment()
+        self.sequence_id = sequence_id
         self.exec_level = exec_level
         self.instruction = instruction
         self.feedback_level = feedback_level

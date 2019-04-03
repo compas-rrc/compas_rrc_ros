@@ -1,6 +1,5 @@
 import rospy
 from abb_042_driver import msg
-from abb_042_driver.message import Message
 
 
 class AbbMessageTopicProvider(object):
@@ -18,14 +17,13 @@ class AbbMessageTopicProvider(object):
         rospy.logdebug('Topic provider started. Subscribed to %s, publishing to %s', topic_name_sub, topic_name_pub)
 
     def callback(self, ros_message):
-        message = Message.from_ros_message(ros_message)
-        self.streaming_interface.execute_instruction(message)
-
-    def message_received(self, message):
         try:
-            ros_message = message.to_ros_message(msg.AbbMessage)
-            rospy.logdebug(str(ros_message))
-            self.publisher.publish(ros_message)
+            self.streaming_interface.execute_instruction(ros_message)
         except Exception as e:
             rospy.logerr(str(e))
 
+    def message_received(self, ros_message):
+        try:
+            self.publisher.publish(ros_message)
+        except Exception as e:
+            rospy.logerr(str(e))

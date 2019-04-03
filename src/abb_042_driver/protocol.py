@@ -3,7 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import struct
-from abb_042_driver.message import Message
+from abb_042_driver import msg
 
 __all__ = [
     'WireProtocol'
@@ -129,14 +129,14 @@ class WireProtocolVersion4(object):
         float_format = '%df' % float_value_count
         float_values = struct.unpack(cls.BYTE_ORDER + float_format, payload[start_pos:])
 
-        return Message(instruction,
-                       sequence_id=sequence_id,
-                       exec_level=exec_level,
-                       feedback_level=feedback_level,
-                       feedback=feedback,
-                       feedback_id=feedback_id,
-                       string_values=string_values,
-                       float_values=float_values)
+        return msg.AbbMessage(instruction,
+                              sequence_id=sequence_id,
+                              exec_level=exec_level,
+                              feedback_level=feedback_level,
+                              feedback=feedback,
+                              feedback_id=feedback_id,
+                              string_values=string_values,
+                              float_values=float_values)
 
     def get_message_length(self, header):
         message_length, _, _, _ = struct.unpack(self.BYTE_ORDER + self.HEADER_FORMAT, header)
