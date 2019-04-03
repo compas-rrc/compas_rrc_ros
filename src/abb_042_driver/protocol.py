@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import struct
+import time
 from abb_042_driver import msg
 
 __all__ = [
@@ -25,6 +26,10 @@ class WireProtocolVersion4(object):
 
     @classmethod
     def serialize(cls, message):
+        ticks = time.time()
+        sec = int(ticks)
+        nsec = int((ticks - int(ticks)) * 1000)
+
         instruction = message.instruction
         exec_level = message.exec_level
         feedback_level = message.feedback_level
@@ -32,8 +37,6 @@ class WireProtocolVersion4(object):
         feedback_id = message.feedback_id
         string_values = message.string_values
         float_values = message.float_values
-        sec = message.sec
-        nsec = message.nsec
 
         # Build command
         payload_format = '3I{}s2I{}sI'.format(len(instruction), len(feedback))
