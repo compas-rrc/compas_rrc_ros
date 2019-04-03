@@ -31,12 +31,6 @@ class Message(object):
         """Message keys uniquely identify a specific message."""
         return 'msg:{}'.format(self.sequence_id)
 
-    @property
-    def response_key(self):
-        """Response key of a message is matches the key of a request message,
-        i.e. it contains the sequence ID of the message that originated the response."""
-        return 'msg:{}'.format(self.feedback_id)
-
     @classmethod
     def from_ros_message(cls, ros_message):
         return cls(ros_message.instruction,

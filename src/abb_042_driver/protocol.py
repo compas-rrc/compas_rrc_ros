@@ -7,7 +7,7 @@ import time
 from abb_042_driver import msg
 
 __all__ = [
-    'WireProtocol'
+    'WireProtocol',
 ]
 
 
@@ -144,6 +144,12 @@ class WireProtocolVersion4(object):
     def get_message_length(self, header):
         message_length, _, _, _ = struct.unpack(self.BYTE_ORDER + self.HEADER_FORMAT, header)
         return message_length
+
+    @classmethod
+    def get_response_key(cls, message):
+        """Response key of a message matches the key of a request message,
+        i.e. it contains the sequence ID of the message that originated the response."""
+        return 'msg:{}'.format(message.feedback_id)
 
 
 WireProtocol = WireProtocolVersion4()
