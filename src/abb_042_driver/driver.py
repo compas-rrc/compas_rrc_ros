@@ -220,8 +220,8 @@ def main():
             robot_state.on_message(message_tracing_output)
 
         # TODO: Add support for AbbMessageCommand service
-        if SERVICE_FORMAT == 'string':
-            AbbStringServiceProvider('abb_command', streaming_interface, robot_state)
+        # if SERVICE_FORMAT == 'string':
+        #     AbbStringServiceProvider('abb_command', streaming_interface, robot_state)
         if TOPIC_FORMAT == 'message':
             AbbMessageTopicProvider('abb_command', 'abb_response', streaming_interface, robot_state)
 
