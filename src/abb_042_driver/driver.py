@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import select
 import socket
 import threading
 import time
@@ -172,7 +173,13 @@ class StreamingInterfaceConnection(object):
                 else:
                     rospy.logdebug('Executing: "%s"\n        with content: %s', message.instruction, str(message))
                     wire_message = WireProtocol.serialize(message)
-                    sent_bytes = self.socket.send(wire_message)
+                    _, writable, _ = select.select([], [self.socket], [])
+
+                    if len(writable) == 0:
+                        raise Exception('No writable socket available')
+
+                    sent_bytes = writable[0].send(wire_message)
+
                     if sent_bytes == 0:
                         raise Exception('Socket connection broken')
 
