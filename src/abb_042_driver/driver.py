@@ -7,7 +7,6 @@ import time
 import rospy
 from abb_042_driver.event_emitter import EventEmitterMixin
 from abb_042_driver.protocol import WireProtocol
-from abb_042_driver.services import AbbStringServiceProvider
 from abb_042_driver.topics import AbbMessageTopicProvider
 
 try:
@@ -195,11 +194,10 @@ class StreamingInterfaceConnection(object):
 
 
 def main():
-    DEBUG = False
+    DEBUG = True
 
     ABB_HOST_DEFAULT = '127.0.0.1'
 
-    SERVICE_FORMAT = 'string'
     TOPIC_FORMAT = 'message'
 
     log_level = rospy.DEBUG if DEBUG else rospy.INFO
@@ -226,9 +224,6 @@ def main():
 
             robot_state.on_message(message_tracing_output)
 
-        # TODO: Add support for AbbMessageCommand service
-        # if SERVICE_FORMAT == 'string':
-        #     AbbStringServiceProvider('abb_command', streaming_interface, robot_state)
         if TOPIC_FORMAT == 'message':
             AbbMessageTopicProvider('abb_command', 'abb_response', streaming_interface, robot_state)
 
