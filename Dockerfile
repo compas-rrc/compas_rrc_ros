@@ -6,7 +6,7 @@
 # Usage:
 #  docker pull gramaziokohler/abb-a042-driver
 
-FROM moveit/moveit:kinetic-release
+FROM ros:kinetic
 LABEL maintainer "Gonzalo Casas <casas@arch.ethz.ch>"
 
 SHELL ["/bin/bash","-c"]
