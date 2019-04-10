@@ -27,3 +27,7 @@ class AbbMessageTopicProvider(object):
             self.publisher.publish(ros_message)
         except Exception as e:
             rospy.logerr(str(e))
+
+    def disconnect(self):
+        self.subscriber.unregister()
+        self.publisher.unregister()
