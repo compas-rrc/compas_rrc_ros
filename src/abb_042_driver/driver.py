@@ -61,16 +61,21 @@ class RobotStateConnection(EventEmitterMixin):
 
         while self.is_running:
             try:
+                readable, _, _ = select.select([self.socket], [], [])
+
+                if len(readable) == 0:
+                    raise Exception('No readable socket available')
+
                 if len(current_header) < WireProtocol.FIXED_HEADER_LEN:
-                    current_header += self.socket.recv(WireProtocol.FIXED_HEADER_LEN)
+                    current_header += readable[0].recv(WireProtocol.FIXED_HEADER_LEN)
                     continue
 
                 # We have a full header, we can proceed with payload
                 if len(current_header) == WireProtocol.FIXED_HEADER_LEN:
-                    try:
-                        message_length = WireProtocol.get_message_length(current_header)
+                    message_length = WireProtocol.get_message_length(current_header)
+                    chunk = readable[0].recv(1024)
 
-                        chunk = self.socket.recv(1024)
+                    try:
                         if not chunk:
                             rospy.logdebug('Nothing read in chuck recv, will continue')
                             continue
@@ -95,9 +100,10 @@ class RobotStateConnection(EventEmitterMixin):
                 # If it times out, it's ok, we just continue and re-start receiving
                 pass
             except socket.error:  # Python 3 would probably be ConnectionResetError
-                rospy.loginfo('Disconnection detected, waiting %d sec before reconnect...', RECONNECT_DELAY)
-                time.sleep(RECONNECT_DELAY)
-                self._connect_socket()
+                if self.is_running:
+                    rospy.logwarn('Disconnection detected, waiting %d sec before reconnect...', RECONNECT_DELAY)
+                    time.sleep(RECONNECT_DELAY)
+                    self._connect_socket()
             except Exception as e:
                 error_message = 'Exception on robot state interface: {}'.format(str(e))
                 rospy.logerr(error_message)
@@ -209,6 +215,7 @@ def main():
 
     streaming_interface = None
     robot_state = None
+    topic_provider = None
 
     try:
         rospy.loginfo('Connecting robot %s (ports %d & %d)', abb_host, abb_streaming_port, abb_state_port)
@@ -225,10 +232,14 @@ def main():
             robot_state.on_message(message_tracing_output)
 
         if TOPIC_FORMAT == 'message':
-            AbbMessageTopicProvider('abb_command', 'abb_response', streaming_interface, robot_state)
+            topic_provider = AbbMessageTopicProvider('abb_command', 'abb_response', streaming_interface, robot_state)
 
         rospy.spin()
     finally:
+        if topic_provider:
+            rospy.loginfo('Disconnecting topic provider...')
+            topic_provider.disconnect()
+
         if streaming_interface:
             rospy.loginfo('Disconnecting streaming interface...')
             streaming_interface.disconnect()
