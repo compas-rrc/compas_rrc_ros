@@ -33,8 +33,8 @@ class RobotStateConnection(EventEmitterMixin):
         self.on('message', callback)
 
     def on_socket_broken(self, callback):
-       """Add an event handler to be triggered when the socket is broken."""
-       self.on('socket_broken', callback)
+        """Add an event handler to be triggered when the socket is broken."""
+        self.on('socket_broken', callback)
 
     def connect(self):
         self._connect_socket()
@@ -145,8 +145,8 @@ class StreamingInterfaceConnection(EventEmitterMixin):
         self.on('message_sent', callback)
 
     def on_socket_broken(self, callback):
-       """Add an event handler to be triggered when the socket is broken."""
-       self.on('socket_broken', callback)
+        """Add an event handler to be triggered when the socket is broken."""
+        self.on('socket_broken', callback)
 
     def connect(self):
         self._connect_socket()
