@@ -14,20 +14,24 @@ class AbbMessageTopicProvider(object):
 
         self.robot_state.on_message(self.message_received)
 
-        rospy.logdebug('Topic provider started. Subscribed to %s, publishing to %s', topic_name_sub, topic_name_pub)
+        rospy.loginfo('Topic provider started. Subscribed to %s, publishing to %s', topic_name_sub, topic_name_pub)
 
     def callback(self, ros_message):
         try:
             self.streaming_interface.execute_instruction(ros_message)
         except Exception as e:
-            rospy.logerr(str(e))
+            rospy.logerr(e)
 
     def message_received(self, ros_message):
         try:
             self.publisher.publish(ros_message)
         except Exception as e:
-            rospy.logerr(str(e))
+            rospy.logerr(e)
 
     def disconnect(self):
-        self.subscriber.unregister()
-        self.publisher.unregister()
+        try:
+            self.subscriber.unregister()
+            self.publisher.unregister()
+            rospy.loginfo('Topic provider disconnected')
+        except Exception as e:
+            rospy.logerr(e)
