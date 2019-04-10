@@ -16,8 +16,9 @@ except ImportError:
 
 CONNECTION_TIMEOUT = 5          # In seconds
 QUEUE_TIMEOUT = 5               # In seconds
-RECONNECT_DELAY = 3             # In seconds
-QUEUE_TERMINATION_TOKEN = None
+RECONNECT_DELAY = 10            # In seconds
+QUEUE_TERMINATION_TOKEN = -1
+QUEUE_RECONNECTION_TOKEN = -2
 
 
 class RobotStateConnection(EventEmitterMixin):
@@ -30,6 +31,10 @@ class RobotStateConnection(EventEmitterMixin):
     def on_message(self, callback):
         """Add an event handler to be triggered on message arrival."""
         self.on('message', callback)
+
+    def on_socket_broken(self, callback):
+       """Add an event handler to be triggered when the socket is broken."""
+       self.on('socket_broken', callback)
 
     def connect(self):
         self._connect_socket()
@@ -61,13 +66,21 @@ class RobotStateConnection(EventEmitterMixin):
 
         while self.is_running:
             try:
-                readable, _, _ = select.select([self.socket], [], [])
+                readable, _, failed = select.select([self.socket], [], [])
+
+                if len(failed) > 0:
+                    raise socket.error('No readable socket available')
 
                 if len(readable) == 0:
-                    raise Exception('No readable socket available')
+                    raise socket.timeout('Socket selection timed out')
 
                 if len(current_header) < WireProtocol.FIXED_HEADER_LEN:
-                    current_header += readable[0].recv(WireProtocol.FIXED_HEADER_LEN)
+                    header_chunk = readable[0].recv(WireProtocol.FIXED_HEADER_LEN)
+
+                    if not header_chunk:
+                        raise socket.error('Robot state socket broken')
+
+                    current_header += header_chunk
                     continue
 
                 # We have a full header, we can proceed with payload
@@ -99,9 +112,11 @@ class RobotStateConnection(EventEmitterMixin):
                 # The socket has a timeout, so that it does not block on recv()
                 # If it times out, it's ok, we just continue and re-start receiving
                 pass
-            except socket.error:  # Python 3 would probably be ConnectionResetError
+            except socket.error:
                 if self.is_running:
-                    rospy.logwarn('Disconnection detected, waiting %d sec before reconnect...', RECONNECT_DELAY)
+                    self.emit('socket_broken')
+
+                    rospy.logwarn('Robot state: Disconnection detected, waiting %d sec before reconnect...', RECONNECT_DELAY)
                     time.sleep(RECONNECT_DELAY)
                     self._connect_socket()
             except Exception as e:
@@ -113,8 +128,9 @@ class RobotStateConnection(EventEmitterMixin):
         rospy.loginfo('Robot state: Worker stopped')
 
 
-class StreamingInterfaceConnection(object):
+class StreamingInterfaceConnection(EventEmitterMixin):
     def __init__(self, host, port):
+        super(StreamingInterfaceConnection, self).__init__()
         self.is_running = False
 
         self.host = host
@@ -123,6 +139,14 @@ class StreamingInterfaceConnection(object):
         self.queue = queue.Queue()
         self.thread = None
         self.socket = None
+
+    def on_message_sent(self, callback):
+        """Add an event handler to be triggered on message sent."""
+        self.on('message_sent', callback)
+
+    def on_socket_broken(self, callback):
+       """Add an event handler to be triggered when the socket is broken."""
+       self.on('socket_broken', callback)
 
     def connect(self):
         self._connect_socket()
@@ -143,6 +167,10 @@ class StreamingInterfaceConnection(object):
             self.thread.join(CONNECTION_TIMEOUT)
 
         self._disconnect_socket()
+
+    def reconnect(self):
+        if self.queue:
+            self.queue.put(QUEUE_RECONNECTION_TOKEN)
 
     def _connect_socket(self):
         rospy.loginfo('Streaming interface: Connecting socket %s:%d', self.host, self.port)
@@ -175,8 +203,9 @@ class StreamingInterfaceConnection(object):
                     # SOCKET_CLOSE_COMMAND = 'stop\r\n'
                     # self.socket.send(SOCKET_CLOSE_COMMAND)
                     break
+                elif message == QUEUE_RECONNECTION_TOKEN:
+                    raise socket.error('Reconnection requested')
                 else:
-                    rospy.logdebug('Executing: "%s"\n        with content: %s', message.instruction, str(message))
                     wire_message = WireProtocol.serialize(message)
                     _, writable, _ = select.select([], [self.socket], [])
 
@@ -186,11 +215,18 @@ class StreamingInterfaceConnection(object):
                     sent_bytes = writable[0].send(wire_message)
 
                     if sent_bytes == 0:
-                        raise Exception('Socket connection broken')
+                        raise socket.error('Streaming socket connection broken')
 
-                    # rospy.loginfo('Sent message with length=%d', len(wire_message))
+                    self.emit('message_sent', message, wire_message)
             except queue.Empty:
                 pass
+            except socket.error:
+                if self.is_running:
+                    self.emit('socket_broken')
+
+                    rospy.logwarn('Streaming interface: Disconnection detected, waiting %d sec before reconnect...', RECONNECT_DELAY)
+                    time.sleep(RECONNECT_DELAY)
+                    self._connect_socket()
             except Exception as e:
                 error_message = 'Exception on streaming interface worker: {}'.format(str(e))
                 rospy.logerr(error_message)
@@ -225,11 +261,20 @@ def main():
         robot_state = RobotStateConnection(abb_host, abb_state_port)
         robot_state.connect()
 
+        # If a disconnect is detected on the robot state socket, it will try to reconnect
+        # So we notify the streaming interface to do the same
+        robot_state.on_socket_broken(streaming_interface.reconnect)
+
         if DEBUG:
-            def message_tracing_output(message):
+            def message_received_log(message):
                 rospy.logdebug('Message received: %s', str(message))
 
-            robot_state.on_message(message_tracing_output)
+            def message_sent_log(message, wire_message):
+                rospy.logdebug('Sent: "%s", content: %s', message.instruction, str(message))
+                rospy.loginfo('Sent message with length=%d, instruction=%s, sequence id=%d', len(wire_message), message.instruction, message.sequence_id)
+
+            robot_state.on_message(message_received_log)
+            streaming_interface.on_message_sent(message_sent_log)
 
         if TOPIC_FORMAT == 'message':
             topic_provider = AbbMessageTopicProvider('abb_command', 'abb_response', streaming_interface, robot_state)
