@@ -265,16 +265,17 @@ def main():
         # So we notify the streaming interface to do the same
         robot_state.on_socket_broken(streaming_interface.reconnect)
 
+        def message_received_log(message):
+            rospy.logdebug('Received: "%s", content: %s', message.feedback, str(message).replace('\n', '; '))
+            rospy.loginfo('Received message: feedback=%s, sequence_id=%d, feedback_id=%d', message.feedback, message.sequence_id, message.feedback_id)
+
+        def message_sent_log(message, wire_message):
+            rospy.logdebug('Sent: "%s", content: %s', message.instruction, str(message).replace('\n', '; '))
+            rospy.loginfo('Sent message with length=%d, instruction=%s, sequence id=%d', len(wire_message), message.instruction, message.sequence_id)
+
+        streaming_interface.on_message_sent(message_sent_log)
         if DEBUG:
-            def message_received_log(message):
-                rospy.logdebug('Message received: %s', str(message))
-
-            def message_sent_log(message, wire_message):
-                rospy.logdebug('Sent: "%s", content: %s', message.instruction, str(message))
-                rospy.loginfo('Sent message with length=%d, instruction=%s, sequence id=%d', len(wire_message), message.instruction, message.sequence_id)
-
             robot_state.on_message(message_received_log)
-            streaming_interface.on_message_sent(message_sent_log)
 
         if TOPIC_FORMAT == 'message':
             topic_provider = AbbMessageTopicProvider('abb_command', 'abb_response', streaming_interface, robot_state)
