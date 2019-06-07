@@ -3,6 +3,10 @@
 # Build:
 #  docker build --rm -f Dockerfile -t gramaziokohler/abb-a042-driver .
 #
+# Usage outside DockerHub:
+#  docker save -o abb-a042-driver-latest.tar gramaziokohler/abb-a042-driver:latest
+#  docker load -i abb-a042-driver-latest.tar
+#
 # Usage:
 #  docker pull gramaziokohler/abb-a042-driver
 
