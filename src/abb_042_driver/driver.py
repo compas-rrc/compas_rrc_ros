@@ -7,7 +7,7 @@ import time
 import rospy
 from abb_042_driver.event_emitter import EventEmitterMixin
 from abb_042_driver.protocol import WireProtocol
-from abb_042_driver.topics import AbbMessageTopicProvider
+from abb_042_driver.topics import RobotMessageTopicProvider
 
 try:
     import Queue as queue
@@ -237,28 +237,26 @@ class StreamingInterfaceConnection(EventEmitterMixin):
 
 def main():
     DEBUG = True
-
-    ABB_HOST_DEFAULT = '127.0.0.1'
-
-    TOPIC_FORMAT = 'message'
+    ROBOT_HOST_DEFAULT = '127.0.0.1'
+    TOPIC_MODE = 'message'
 
     log_level = rospy.DEBUG if DEBUG else rospy.INFO
     rospy.init_node('abb_042_driver', log_level=log_level)
 
-    abb_host = rospy.get_param('robot_ip_address', ABB_HOST_DEFAULT)
-    abb_streaming_port = rospy.get_param('robot_streaming_port')
-    abb_state_port = rospy.get_param('robot_state_port')
+    robot_host = rospy.get_param('robot_ip_address', ROBOT_HOST_DEFAULT)
+    robot_streaming_port = rospy.get_param('robot_streaming_port')
+    robot_state_port = rospy.get_param('robot_state_port')
 
     streaming_interface = None
     robot_state = None
     topic_provider = None
 
     try:
-        rospy.loginfo('Connecting robot %s (ports %d & %d)', abb_host, abb_streaming_port, abb_state_port)
-        streaming_interface = StreamingInterfaceConnection(abb_host, abb_streaming_port)
+        rospy.loginfo('Connecting robot %s (ports %d & %d)', robot_host, robot_streaming_port, robot_state_port)
+        streaming_interface = StreamingInterfaceConnection(robot_host, robot_streaming_port)
         streaming_interface.connect()
 
-        robot_state = RobotStateConnection(abb_host, abb_state_port)
+        robot_state = RobotStateConnection(robot_host, robot_state_port)
         robot_state.connect()
 
         # If a disconnect is detected on the robot state socket, it will try to reconnect
@@ -277,8 +275,8 @@ def main():
         if DEBUG:
             robot_state.on_message(message_received_log)
 
-        if TOPIC_FORMAT == 'message':
-            topic_provider = AbbMessageTopicProvider('abb_command', 'abb_response', streaming_interface, robot_state)
+        if TOPIC_MODE == 'message':
+            topic_provider = RobotMessageTopicProvider('robot_command', 'robot_response', streaming_interface, robot_state)
 
         rospy.spin()
     finally:

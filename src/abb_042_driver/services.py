@@ -7,16 +7,16 @@ from abb_042_driver import srv
 from abb_042_driver.message import Message
 
 
-class AbbBaseServiceProvider(object):
+class RobotBaseServiceProvider(object):
     def __init__(self, streaming_interface, robot_state):
         self.streaming_interface = streaming_interface
         self.robot_state = robot_state
 
 
-class AbbMessageServiceProvider(AbbBaseServiceProvider):
+class RobotMessageServiceProvider(RobotBaseServiceProvider):
     def __init__(self, service_name, streaming_interface, robot_state):
-        super(AbbMessageServiceProvider, self).__init__(streaming_interface, robot_state)
-        self.service = rospy.Service(service_name, srv.AbbMessageCommand, self.handle_service_call)
+        super(RobotMessageServiceProvider, self).__init__(streaming_interface, robot_state)
+        self.service = rospy.Service(service_name, srv.RobotMessageCommand, self.handle_service_call)
 
         rospy.logdebug('Started message command service...')
 
@@ -24,10 +24,10 @@ class AbbMessageServiceProvider(AbbBaseServiceProvider):
         raise NotImplementedError()
 
 
-class AbbStringServiceProvider(AbbBaseServiceProvider):
+class RobotStringServiceProvider(RobotBaseServiceProvider):
     def __init__(self, service_name, streaming_interface, robot_state):
-        super(AbbStringServiceProvider, self).__init__(streaming_interface, robot_state)
-        self.service = rospy.Service(service_name, srv.AbbStringCommand, self.handle_service_call)
+        super(RobotStringServiceProvider, self).__init__(streaming_interface, robot_state)
+        self.service = rospy.Service(service_name, srv.RobotStringCommand, self.handle_service_call)
 
         rospy.logdebug('Started string command service...')
 
@@ -38,7 +38,7 @@ class AbbStringServiceProvider(AbbBaseServiceProvider):
         wait_event = threading.Event()
         call_results = {}
 
-        def abb_response_received(response_message):
+        def robot_response_received(response_message):
             try:
                 rospy.logdebug('Received response message: key=%s', response_message.key)
                 call_results['response'] = json.dumps(response_message.to_data())
@@ -51,7 +51,7 @@ class AbbStringServiceProvider(AbbBaseServiceProvider):
         # Command might be a single instruction or a list of them
         if 'instruction' in command:
             message = Message.from_data(command)
-            self.robot_state.on(message.key, abb_response_received)
+            self.robot_state.on(message.key, robot_response_received)
             self.streaming_interface.execute_instruction(message)
 
             response_data = ''
@@ -64,7 +64,7 @@ class AbbStringServiceProvider(AbbBaseServiceProvider):
 
                 response_data = call_results['response']
 
-            return srv.AbbStringCommandResponse(response_data)
+            return srv.RobotStringCommandResponse(response_data)
 
         # Batched commands only return the last response
         elif 'instructions' in command:
@@ -82,7 +82,7 @@ class AbbStringServiceProvider(AbbBaseServiceProvider):
 
                     response_data = call_results['response']
 
-            return srv.AbbStringCommandResponse(response_data)
+            return srv.RobotStringCommandResponse(response_data)
 
         else:
             raise ValueError('Unexpected command')

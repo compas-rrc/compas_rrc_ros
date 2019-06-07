@@ -1,13 +1,13 @@
 syntax = "proto3";
 
-message AbbHeader {
+message RobotHeader {
   fixed32 msg_length = 1;
   fixed32 version = 2;
   fixed32 sec = 3;
   fixed32 nsec = 4;
 }
 
-message AbbMessage {
+message RobotMessage {
   enum ExecLevel {
       MOTION = 0;
       RECEIVER = 1;

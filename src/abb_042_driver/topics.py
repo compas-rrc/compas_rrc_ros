@@ -2,15 +2,15 @@ import rospy
 from abb_042_driver import msg
 
 
-class AbbMessageTopicProvider(object):
+class RobotMessageTopicProvider(object):
     def __init__(self, topic_name_sub, topic_name_pub, streaming_interface, robot_state):
-        super(AbbMessageTopicProvider, self).__init__()
+        super(RobotMessageTopicProvider, self).__init__()
 
         self.streaming_interface = streaming_interface
         self.robot_state = robot_state
 
-        self.subscriber = rospy.Subscriber(topic_name_sub, msg.AbbMessage, self.callback)
-        self.publisher = rospy.Publisher(topic_name_pub, msg.AbbMessage, queue_size=10)
+        self.subscriber = rospy.Subscriber(topic_name_sub, msg.RobotMessage, self.callback)
+        self.publisher = rospy.Publisher(topic_name_pub, msg.RobotMessage, queue_size=10)
 
         self.robot_state.on_message(self.message_received)
 
