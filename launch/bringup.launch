@@ -1,22 +1,7 @@
 <launch>
+    <arg name="robot_ip" doc="IP of the controller" />
 
-  <!-- robot_ip: IP-address of the robot's socket-messaging server -->
-  <arg name="robot_ip" doc="IP of the controller" />
-  <arg name="robot_streaming_port" default="30003" doc="Port of the streaming interface" />
-  <arg name="robot_state_port" default="30004" doc="Port of the state interface" />
-  <arg name="prefix" default="" doc="Prefix to robot's joints' and links' names" />
-
-  <param name="/robot_ip_address" type="str" value="$(arg robot_ip)"/>
-  <param name="/robot_streaming_port" type="int" value="$(arg robot_streaming_port)"/>
-  <param name="/robot_state_port" type="int" value="$(arg robot_state_port)"/>
-
-  <!--
-  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
-  -->
-
-  <!-- driver -->
-  <node name="abb_042_driver" pkg="abb_042_driver" type="driver.py" args="$(arg robot_ip)" respawn="true" output="screen">
-    <param name="prefix" type="string" value="$(arg prefix)"/>
-  </node>
-
+    <include file="$(find abb_042_driver)/launch/bringup-common.launch">
+        <arg name="robot_ip" value="$(arg robot_ip)" />
+    </include>
 </launch>

@@ -1,0 +1,35 @@
+<launch>
+    <arg name="robot_ip" doc="IP of the controller" />
+
+    <group ns="robot_1">
+        <include file="$(find abb_042_driver)/launch/bringup-common.launch">
+            <arg name="robot_ip" value="$(arg robot_ip)" />
+            <arg name="robot_streaming_port" value="30101" />
+            <arg name="robot_state_port" value="30201" />
+        </include>
+    </group>
+
+    <group ns="robot_2">
+        <include file="$(find abb_042_driver)/launch/bringup-common.launch">
+            <arg name="robot_ip" value="$(arg robot_ip)" />
+            <arg name="robot_streaming_port" value="30102" />
+            <arg name="robot_state_port" value="30202" />
+        </include>
+    </group>
+
+    <group ns="robot_3">
+        <include file="$(find abb_042_driver)/launch/bringup-common.launch">
+            <arg name="robot_ip" value="$(arg robot_ip)" />
+            <arg name="robot_streaming_port" value="30103" />
+            <arg name="robot_state_port" value="30203" />
+        </include>
+    </group>
+
+    <group ns="robot_4">
+        <include file="$(find abb_042_driver)/launch/bringup-common.launch">
+            <arg name="robot_ip" value="$(arg robot_ip)" />
+            <arg name="robot_streaming_port" value="30104" />
+            <arg name="robot_state_port" value="30204" />
+        </include>
+    </group>
+</launch>
