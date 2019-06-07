@@ -2,7 +2,6 @@ import json
 import threading
 
 import rospy
-from abb_042_driver import msg
 from abb_042_driver import srv
 from abb_042_driver.message import Message
 
