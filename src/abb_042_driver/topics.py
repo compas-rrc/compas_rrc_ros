@@ -31,6 +31,7 @@ class RobotMessageTopicProvider(object):
                 self.streaming_interface.execute_instruction(ros_message)
         except Exception as e:
             rospy.logerr(e)
+            raise e
         finally:
             self._last_published_id = ros_message.sequence_id
 
@@ -43,6 +44,7 @@ class RobotMessageTopicProvider(object):
                 self.publisher.publish(ros_message)
             except Exception as e:
                 rospy.logerr(e)
+                raise e
             finally:
                 self._last_received_id = ros_message.sequence_id
 
