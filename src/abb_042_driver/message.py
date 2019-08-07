@@ -90,3 +90,6 @@ class Message(object):
             'string_values': self.string_values,
             'float_values': self.float_values,
         }
+
+    def __cmp__(self, other):
+        return cmp(int(self.sequence_id), int(other.sequence_id))
