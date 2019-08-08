@@ -15,6 +15,8 @@ LABEL maintainer "Gonzalo Casas <casas@arch.ethz.ch>"
 
 SHELL ["/bin/bash","-c"]
 
+RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys F42ED6FBAB17C654
+
 # Install packages
 RUN apt-get update && apt-get install -y \
     # Basic utilities
