@@ -19,8 +19,16 @@ class RobotMessageTopicProvider(object):
         self.publisher = rospy.Publisher(topic_name_pub, msg.RobotMessage)
 
         self.robot_state.on_message(self.robot_to_ros_handler)
+        self.robot_state.on_socket_broken(self._reset_sequence_id)
 
         rospy.loginfo('Topic provider started. Subscribed to %s, publishing to %s', topic_name_sub, topic_name_pub)
+
+    def _reset_sequence_id(self):
+        with self._publish_lock:
+            self._last_published_id = 0
+
+        with self._receive_lock:
+            self._last_received_id = 0
 
     def ros_to_robot_handler(self, ros_message):
         """Handle messages from ROS topics to the robot controller"""
