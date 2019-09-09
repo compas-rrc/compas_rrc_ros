@@ -46,7 +46,7 @@ RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
     && cd $CATKIN_WS \
     && rosdep install -y --from-paths . --ignore-src --rosdistro ${ROS_DISTRO} \
     # Build catkin workspace
-    && catkin_make
+    && ROS_LANG_DISABLE=geneus:genlisp:gennodejs catkin_make
 
 COPY ./.docker/ros_catkin_entrypoint.sh /
 
