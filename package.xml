@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>abb_042_driver</name>
+  <name>compas_rrc_driver</name>
   <version>0.1.0</version>
-  <description>ABB 042 Driver: Python client</description>
+  <description>COMPAS RRC: ROS Driver</description>
 
   <maintainer email="casas@arch.ethz.ch">Gonzalo Casas</maintainer>
 

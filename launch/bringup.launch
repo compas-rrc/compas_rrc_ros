@@ -3,7 +3,7 @@
     <arg name="robot_streaming_port" default="30101" doc="Port of the streaming interface" />
     <arg name="robot_state_port" default="30201" doc="Port of the state interface" />
 
-    <include file="$(find abb_042_driver)/launch/bringup-common.launch">
+    <include file="$(find compas_rrc_driver)/launch/bringup-common.launch">
         <arg name="robot_ip" value="$(arg robot_ip)" />
         <arg name="robot_streaming_port" value="$(arg robot_streaming_port)" />
         <arg name="robot_state_port" value="$(arg robot_state_port)" />

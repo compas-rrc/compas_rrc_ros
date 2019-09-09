@@ -4,7 +4,7 @@ from __future__ import print_function
 
 import struct
 import time
-from abb_042_driver import msg
+from compas_rrc_driver import msg
 
 __all__ = [
     'WireProtocol',

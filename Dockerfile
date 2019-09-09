@@ -1,14 +1,14 @@
-# Container for testing ABB 042 Driver
+# Container for running COMPAS RRC Driver
 #
 # Build:
-#  docker build --rm -f Dockerfile -t gramaziokohler/abb-a042-driver .
+#  docker build --rm -f Dockerfile -t gramaziokohler/compas_rrc_driver .
 #
 # Usage outside DockerHub:
-#  docker save -o abb-a042-driver-latest.tar gramaziokohler/abb-a042-driver:latest
-#  docker load -i abb-a042-driver-latest.tar
+#  docker save -o compas_rrc_driver-latest.tar gramaziokohler/compas_rrc_driver:latest
+#  docker load -i compas_rrc_driver-latest.tar
 #
 # Usage:
-#  docker pull gramaziokohler/abb-a042-driver
+#  docker pull gramaziokohler/compas_rrc_driver
 
 FROM ros:kinetic
 LABEL maintainer "Gonzalo Casas <casas@arch.ethz.ch>"
@@ -30,8 +30,8 @@ RUN apt-get update && apt-get install -y \
 
 # Create local catkin workspace
 ENV CATKIN_WS=/root/catkin_ws
-# Add ABB A042 Driver package
-ADD . $CATKIN_WS/src/abb_042_driver
+# Add COMPAS RRC Driver package
+ADD . $CATKIN_WS/src/compas_rrc_driver
 WORKDIR $CATKIN_WS/src
 
 RUN source /opt/ros/${ROS_DISTRO}/setup.bash \

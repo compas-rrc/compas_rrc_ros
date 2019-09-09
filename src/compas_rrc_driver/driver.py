@@ -5,9 +5,9 @@ import threading
 import time
 
 import rospy
-from abb_042_driver.event_emitter import EventEmitterMixin
-from abb_042_driver.protocol import WireProtocol
-from abb_042_driver.topics import RobotMessageTopicProvider
+from compas_rrc_driver.event_emitter import EventEmitterMixin
+from compas_rrc_driver.protocol import WireProtocol
+from compas_rrc_driver.topics import RobotMessageTopicProvider
 
 try:
     import Queue as queue
@@ -241,7 +241,7 @@ def main():
     TOPIC_MODE = 'message'
 
     log_level = rospy.DEBUG if DEBUG else rospy.INFO
-    rospy.init_node('abb_042_driver', log_level=log_level)
+    rospy.init_node('compas_rrc_driver', log_level=log_level)
 
     robot_host = rospy.get_param('robot_ip_address', ROBOT_HOST_DEFAULT)
     robot_streaming_port = rospy.get_param('robot_streaming_port')

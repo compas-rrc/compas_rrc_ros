@@ -1,6 +1,6 @@
 import rospy
 from threading import Lock
-from abb_042_driver import msg
+from compas_rrc_driver import msg
 
 
 class RobotMessageTopicProvider(object):

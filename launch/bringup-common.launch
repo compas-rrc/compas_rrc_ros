@@ -13,5 +13,5 @@
     -->
 
     <!-- driver -->
-    <node name="abb_042_driver" pkg="abb_042_driver" type="driver.py" respawn="true" output="screen" />
+    <node name="compas_rrc_driver" pkg="compas_rrc_driver" type="driver.py" respawn="true" output="screen" />
 </launch>

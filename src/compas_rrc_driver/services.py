@@ -2,8 +2,8 @@ import json
 import threading
 
 import rospy
-from abb_042_driver import srv
-from abb_042_driver.message import Message
+from compas_rrc_driver import srv
+from compas_rrc_driver.message import Message
 
 
 class RobotBaseServiceProvider(object):

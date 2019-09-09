@@ -4,7 +4,7 @@ from distutils.core import setup
 from catkin_pkg.python_setup import generate_distutils_setup
 
 d = generate_distutils_setup(
-   packages=['abb_042_driver'],
+   packages=['compas_rrc_driver'],
    package_dir={'': 'src'}
 )
 
