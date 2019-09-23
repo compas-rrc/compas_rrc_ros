@@ -1,5 +1,7 @@
 # COMPAS RRC: ROS driver
 
+![COMPAS RRC](images/compas_rrc.png)
+
 > ROS package for the COMPAS RRC driver for ABB robots.
 
 ## Usage
