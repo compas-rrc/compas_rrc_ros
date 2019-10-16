@@ -2,15 +2,28 @@ import rospy
 from threading import Lock
 from compas_rrc_driver import msg
 
+class SequenceCheckModes(object):
+    NONE = 'none'
+    ALL = 'all'
+    INCOMING = 'incoming'
+    OUTGOING = 'outgoing'
+
 
 class RobotMessageTopicProvider(object):
-    def __init__(self, topic_name_sub, topic_name_pub, streaming_interface, robot_state):
+    def __init__(self, topic_name_sub, topic_name_pub, streaming_interface, robot_state, options=None):
         super(RobotMessageTopicProvider, self).__init__()
 
         self._publish_lock = Lock()
         self._receive_lock = Lock()
         self._last_published_id = 0
         self._last_received_id = 0
+        self.sequence_check_mode = SequenceCheckModes.NONE
+
+        if options:
+            self.sequence_check_mode = options.get('sequence_check_mode', SequenceCheckModes.NONE)
+
+            if self.sequence_check_mode not in (SequenceCheckModes.NONE, SequenceCheckModes.ALL, SequenceCheckModes.INCOMING, SequenceCheckModes.OUTGOING):
+                raise Exception('Unsupported sequence check mode. Value={}'.format(self.sequence_check_mode))
 
         self.streaming_interface = streaming_interface
         self.robot_state = robot_state
@@ -34,8 +47,9 @@ class RobotMessageTopicProvider(object):
         """Handle messages from ROS topics to the robot controller"""
         try:
             with self._publish_lock:
-                if ros_message.sequence_id != self._last_published_id + 1:
-                    raise Exception('Received out of order (ROS -> Controller). Received={}, Last sequence id={}'.format(ros_message.sequence_id, self._last_published_id))
+                if self.sequence_check_mode in (SequenceCheckModes.OUTGOING, SequenceCheckModes.ALL):
+                    if ros_message.sequence_id != self._last_published_id + 1:
+                        raise Exception('Received out of order (ROS -> Controller). Received={}, Last sequence id={}'.format(ros_message.sequence_id, self._last_published_id))
                 self.streaming_interface.execute_instruction(ros_message)
         except Exception as e:
             rospy.logerr(e)
@@ -47,8 +61,9 @@ class RobotMessageTopicProvider(object):
         """Handle messages from the robot controller to ROS topic."""
         with self._receive_lock:
             try:
-                if ros_message.sequence_id != self._last_received_id + 1:
-                    raise Exception('Received out of order (Controller -> ROS). Received={}, Last sequence id={}'.format(ros_message.sequence_id, self._last_received_id))
+                if self.sequence_check_mode in (SequenceCheckModes.INCOMING, SequenceCheckModes.ALL):
+                    if ros_message.sequence_id != self._last_received_id + 1:
+                        raise Exception('Received out of order (Controller -> ROS). Received={}, Last sequence id={}'.format(ros_message.sequence_id, self._last_received_id))
                 self.publisher.publish(ros_message)
             except Exception as e:
                 rospy.logerr(e)

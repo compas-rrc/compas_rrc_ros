@@ -256,6 +256,7 @@ def main():
     robot_host = rospy.get_param('robot_ip_address', ROBOT_HOST_DEFAULT)
     robot_streaming_port = rospy.get_param('robot_streaming_port')
     robot_state_port = rospy.get_param('robot_state_port')
+    sequence_check_mode = rospy.get_param('sequence_check_mode')
 
     streaming_interface = None
     robot_state = None
@@ -286,7 +287,8 @@ def main():
             robot_state.on_message(message_received_log)
 
         if TOPIC_MODE == 'message':
-            topic_provider = RobotMessageTopicProvider('robot_command', 'robot_response', streaming_interface, robot_state)
+            options = dict(sequence_check_mode=sequence_check_mode)
+            topic_provider = RobotMessageTopicProvider('robot_command', 'robot_response', streaming_interface, robot_state, options=options)
 
         rospy.spin()
     finally:
