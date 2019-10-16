@@ -47,3 +47,12 @@ If you prefer to use a ROS installation on Linux:
 * Launch the driver using one of the provided launch files, e.g.:
 
       $ roslaunch compas_rrc_driver bringup.launch robot_ip:=127.0.0.1 robot_streaming_port:=30101 robot_state_port:=30201
+
+## Launch file parameters
+
+The launch files have the following parameters available:
+
+* `robot_ip`: [mandatory] IP address of the robot. 
+* `robot_streaming_port`: [optional, default=30101] TCP port of the streaming interface of the robot.
+* `robot_state_port`: [optional, default=30201] TCP port of the state interface of the robot. 
+* `sequence_check_mode`: [optional, default=none] Sequence check mode, valid options are: `none`, `all`, `incoming`, `outgoing`
