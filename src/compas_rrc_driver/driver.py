@@ -263,7 +263,7 @@ def main():
     topic_provider = None
 
     try:
-        rospy.loginfo('Connecting robot %s (ports %d & %d)', robot_host, robot_streaming_port, robot_state_port)
+        rospy.loginfo('Connecting robot %s (ports %d & %d, sequence check mode=%s)', robot_host, robot_streaming_port, robot_state_port, sequence_check_mode)
         streaming_interface = StreamingInterfaceConnection(robot_host, robot_streaming_port)
         streaming_interface.connect()
 
