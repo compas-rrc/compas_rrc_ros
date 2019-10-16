@@ -8,7 +8,7 @@
     <param name="robot_ip_address" type="str" value="$(arg robot_ip)"/>
     <param name="robot_streaming_port" type="int" value="$(arg robot_streaming_port)"/>
     <param name="robot_state_port" type="int" value="$(arg robot_state_port)"/>
-    <param name="sequence_check_mode" type="bool" value="$(arg sequence_check_mode)"/>
+    <param name="sequence_check_mode" type="str" value="$(arg sequence_check_mode)"/>
 
     <!--
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
