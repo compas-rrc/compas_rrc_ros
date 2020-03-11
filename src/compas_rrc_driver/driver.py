@@ -50,14 +50,18 @@ class RobotStateConnection(EventEmitterMixin):
         self._disconnect_socket()
 
     def _connect_socket(self):
-        rospy.loginfo('Robot state: Connecting socket %s:%d', self.host, self.port)
-        self.socket = socket.create_connection((self.host, self.port), CONNECTION_TIMEOUT)
-        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-        self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60)
-        self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 10)
-        self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6)
+        try:
+            rospy.loginfo('Robot state: Connecting socket %s:%d', self.host, self.port)
+            self.socket = socket.create_connection((self.host, self.port), CONNECTION_TIMEOUT)
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+            self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60)
+            self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 10)
+            self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6)
 
-        rospy.loginfo('Robot state: Socket connected')
+            rospy.loginfo('Robot state: Socket connected')
+        except:
+            rospy.logerr('Cannot robot state: %s:%d', self.host, self.port)
+            raise
 
     def _disconnect_socket(self):
         rospy.loginfo('Robot state: Disconnecting socket')
@@ -178,14 +182,18 @@ class StreamingInterfaceConnection(EventEmitterMixin):
             self.queue.put(QUEUE_RECONNECTION_TOKEN)
 
     def _connect_socket(self):
-        rospy.loginfo('Streaming interface: Connecting socket %s:%d', self.host, self.port)
-        self.socket = socket.create_connection((self.host, self.port), CONNECTION_TIMEOUT)
-        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-        self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60)
-        self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 10)
-        self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6)
+        try:
+            rospy.loginfo('Streaming interface: Connecting socket %s:%d', self.host, self.port)
+            self.socket = socket.create_connection((self.host, self.port), CONNECTION_TIMEOUT)
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+            self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60)
+            self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 10)
+            self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6)
 
-        rospy.loginfo('Streaming interface: Socket connected')
+            rospy.loginfo('Streaming interface: Socket connected')
+        except:
+            rospy.logerr('Cannot connect streaming interface: %s:%d', self.host, self.port)
+            raise
 
     def _disconnect_socket(self):
         rospy.loginfo('Streaming interface: Disconnecting socket')
