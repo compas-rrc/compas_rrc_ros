@@ -16,7 +16,7 @@ services:
       - robot_ip:=192.168.0.101        # NOTE: IP Address of the first robot controller
       - robot_streaming_port:=30101
       - robot_state_port:=30201
-      - namespace:=robot1
+      - namespace:=robot1              # NOTE: Namespace of the first robot, to use when opening the connection from the client side
 
   abb-driver-2:
     image: gramaziokohler/compas_rrc_driver
@@ -32,9 +32,9 @@ services:
       - compas_rrc_driver
       - bringup.launch
       - robot_ip:=192.168.0.102        # NOTE: IP Address of the second robot controller
-      - robot_streaming_port:=30101
-      - robot_state_port:=30201
-      - namespace:=robot2
+      - robot_streaming_port:=30101    # NOTE: Streaming port can be the same for multiple robots on the multiple controllers
+      - robot_state_port:=30201        # NOTE: State port can be the same for multiple robots on the multiple controllers
+      - namespace:=robot2              # NOTE: Namespace of the second robot, to use when opening the connection from the client side
 
   ros-master:
     image: gramaziokohler/compas_rrc_driver
