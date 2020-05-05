@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>compas_rrc_driver</name>
-  <version>0.2.0</version>
+  <version>0.3.0</version>
   <description>COMPAS RRC: ROS Driver</description>
 
   <maintainer email="casas@arch.ethz.ch">Gonzalo Casas</maintainer>

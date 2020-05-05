@@ -10,7 +10,7 @@
 # Usage:
 #  docker pull gramaziokohler/compas_rrc_driver
 
-FROM ros:kinetic
+FROM ros:kinetic-ros-core
 LABEL maintainer "Gonzalo Casas <casas@arch.ethz.ch>"
 
 SHELL ["/bin/bash","-c"]
@@ -37,11 +37,6 @@ WORKDIR $CATKIN_WS/src
 RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
     # Update apt-get because its cache is always cleared after installs to keep image size down
     && apt-get update \
-    # ROS File Server
-    && git clone https://github.com/gramaziokohler/ros_file_server.git \
-    # ABB packages
-    && git clone -b ${ROS_DISTRO}-devel https://github.com/ros-industrial/abb.git \
-    && git clone -b ${ROS_DISTRO}-devel https://github.com/ros-industrial/abb_experimental.git \
     # Install dependencies
     && cd $CATKIN_WS \
     && rosdep install -y --from-paths . --ignore-src --rosdistro ${ROS_DISTRO} \
