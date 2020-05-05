@@ -17,11 +17,12 @@ The easiest option to use the ROS package is via Docker:
 
 * To use it with a virtual controller (ABB RobotStudio) on the same computer, no further changes are needed.
 * To use it with a real robot, update the robot's IP address in `docker-compose.yml` file (e.g. `robot_ip:=192.168.0.100`)
+* To use it in other scenarios, check the [examples](examples) folder.
 * Run docker compose up:
 
       $ docker-compose up
 
-* Start the robot controller.
+* Start the robot controller(s).
 
 ### Linux
 
@@ -56,3 +57,4 @@ The launch files have the following parameters available:
 * `robot_streaming_port`: [*optional*, `default=30101`] TCP port of the streaming interface of the robot.
 * `robot_state_port`: [*optional*, `default=30201`] TCP port of the state interface of the robot. 
 * `sequence_check_mode`: [*optional*, `default=none`] Sequence check mode, valid options are: `none`, `all`, `incoming`, `outgoing`
+* `namespace`: [*optional*, `default='/'`] Allows to define a namespace in order to connect to multiple robots on the same instance. Defaults to root (`/`).
