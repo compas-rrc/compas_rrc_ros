@@ -15,9 +15,8 @@ __all__ = [
 # Each protocol version has a class,
 # and we keep historical versions in code
 # in case we want to add backwards compat
-# Versions earlier than 4 were pre-release
-class WireProtocolVersion4(object):
-    VERSION = 4
+class WireProtocolVersion1(object):
+    VERSION = 1
     BYTE_ORDER = '<'
     FIXED_HEADER_LEN = 16
     HEADER_FORMAT = '4I'
@@ -145,6 +144,11 @@ class WireProtocolVersion4(object):
         message_length, _, _, _ = struct.unpack(self.BYTE_ORDER + self.HEADER_FORMAT, header)
         return message_length
 
+    def check_version(self, header):
+        _, server_protocol_version, _, _ = struct.unpack(self.BYTE_ORDER + self.HEADER_FORMAT, header)
+        if self.VERSION != server_protocol_version:
+            raise Exception('Protocol version mismatch. Server={}, Client={}'.format(server_protocol_version, cls.VERSION))
+
     @classmethod
     def get_response_key(cls, message):
         """Response key of a message matches the key of a request message,
@@ -152,4 +156,13 @@ class WireProtocolVersion4(object):
         return 'msg:{}'.format(message.feedback_id)
 
 
-WireProtocol = WireProtocolVersion4()
+# Version 2 of the protocol extends the values to 8 strings and 36 floats
+# Additionally, it uses the least amount of data possible by always
+# appending values to the next free location.
+class WireProtocolVersion2(WireProtocolVersion1):
+    VERSION = 2
+    MAX_STRING_VALUES = 8
+    MAX_FLOAT_VALUES = 36
+
+
+WireProtocol = WireProtocolVersion2()

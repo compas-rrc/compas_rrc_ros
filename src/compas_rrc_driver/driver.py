@@ -72,6 +72,7 @@ class RobotStateConnection(EventEmitterMixin):
         rospy.loginfo('Robot state: Worker started')
         current_header = b''
         current_payload = b''
+        version_already_checked = False
 
         while self.is_running:
             try:
@@ -94,6 +95,11 @@ class RobotStateConnection(EventEmitterMixin):
 
                 # We have a full header, we can proceed with payload
                 if len(current_header) == WireProtocol.FIXED_HEADER_LEN:
+                    # Ensure incoming version check matches
+                    if not version_already_checked:
+                        WireProtocol.check_version(current_header)
+                        version_already_checked = True
+
                     message_length = WireProtocol.get_message_length(current_header)
                     chunk = readable[0].recv(1024)
 
@@ -265,6 +271,9 @@ def main():
     robot_streaming_port = rospy.get_param('robot_streaming_port')
     robot_state_port = rospy.get_param('robot_state_port')
     sequence_check_mode = rospy.get_param('sequence_check_mode')
+
+    # Set protocol version in a parameter to enable version checks from the client side
+    rospy.set_param('protocol_version', WireProtocol.VERSION)
 
     streaming_interface = None
     robot_state = None
