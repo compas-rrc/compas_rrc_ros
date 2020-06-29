@@ -97,7 +97,11 @@ class RobotStateConnection(EventEmitterMixin):
                 if len(current_header) == WireProtocol.FIXED_HEADER_LEN:
                     # Ensure incoming version check matches
                     if not version_already_checked:
-                        WireProtocol.check_version(current_header)
+                        server_protocol_version = WireProtocol.get_protocol_version(current_header)
+
+                        if WireProtocol.VERSION != server_protocol_version:
+                            raise Exception('Protocol version mismatch: Server={}, Client={}'.format(server_protocol_version, WireProtocol.VERSION))
+
                         version_already_checked = True
 
                     message_length = WireProtocol.get_message_length(current_header)

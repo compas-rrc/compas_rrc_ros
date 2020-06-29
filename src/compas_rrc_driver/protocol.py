@@ -144,10 +144,9 @@ class WireProtocolVersion1(object):
         message_length, _, _, _ = struct.unpack(self.BYTE_ORDER + self.HEADER_FORMAT, header)
         return message_length
 
-    def check_version(self, header):
+    def get_protocol_version(self, header):
         _, server_protocol_version, _, _ = struct.unpack(self.BYTE_ORDER + self.HEADER_FORMAT, header)
-        if self.VERSION != server_protocol_version:
-            raise Exception('Protocol version mismatch. Server={}, Client={}'.format(server_protocol_version, self.VERSION))
+        return server_protocol_version
 
     @classmethod
     def get_response_key(cls, message):
