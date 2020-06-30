@@ -40,7 +40,7 @@ WORKDIR $CATKIN_WS/src
 RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
     # Reconfigure rosdep
     && rm -rf /etc/ros/rosdep/sources.list.d/* \
-    && rosdep init \
+    && rosdep init && rosdep update \
     # Update apt-get because its cache is always cleared after installs to keep image size down
     && apt-get update \
     && sudo apt-get install build-essential -y \
