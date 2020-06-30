@@ -53,6 +53,7 @@ RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
     && rm -rf /var/lib/apt/lists/*
 
 COPY ./.docker/ros_catkin_entrypoint.sh /
+RUN chmod +x /ros_catkin_entrypoint.sh
 
 ENTRYPOINT ["/ros_catkin_entrypoint.sh"]
 CMD ["bash"]
