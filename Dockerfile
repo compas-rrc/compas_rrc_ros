@@ -11,7 +11,7 @@
 #  docker pull gramaziokohler/compas_rrc_driver
 
 FROM ros:kinetic-ros-core
-LABEL maintainer "Gonzalo Casas <casas@arch.ethz.ch>"
+LABEL maintainer="Gonzalo Casas <casas@arch.ethz.ch>"
 
 SHELL ["/bin/bash","-c"]
 
