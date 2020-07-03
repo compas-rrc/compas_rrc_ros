@@ -29,7 +29,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Build number
-ENV RRC_BUILD=0
+ENV RRC_BUILD=1
 
 # Create local catkin workspace
 ENV CATKIN_WS=/root/catkin_ws
