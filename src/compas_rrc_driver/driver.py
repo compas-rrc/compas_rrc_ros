@@ -17,6 +17,7 @@ except ImportError:
 CONNECTION_TIMEOUT = 5          # In seconds
 QUEUE_TIMEOUT = 5               # In seconds
 RECONNECT_DELAY = 10            # In seconds
+QUEUE_MESSAGE_TOKEN = 0
 QUEUE_TERMINATION_TOKEN = -1
 QUEUE_RECONNECTION_TOKEN = -2
 
@@ -37,8 +38,8 @@ class RobotStateConnection(EventEmitterMixin):
         self.on('socket_broken', callback)
 
     def connect(self):
-        self._connect_socket()
         self.is_running = True
+        self._connect_socket()
 
         self.thread = threading.Thread(target=self.socket_worker, name='robot_state_socket')
         self.thread.daemon = True
@@ -60,7 +61,7 @@ class RobotStateConnection(EventEmitterMixin):
 
             rospy.loginfo('Robot state: Socket connected')
         except:
-            rospy.logerr('Cannot robot state: %s:%d', self.host, self.port)
+            rospy.logerr('Cannot connect robot state: %s:%d', self.host, self.port)
             raise
 
     def _disconnect_socket(self):
@@ -76,6 +77,9 @@ class RobotStateConnection(EventEmitterMixin):
 
         while self.is_running:
             try:
+                if not self.socket:
+                    self._connect_socket()
+
                 readable, _, failed = select.select([self.socket], [], [])
 
                 if len(failed) > 0:
@@ -133,11 +137,11 @@ class RobotStateConnection(EventEmitterMixin):
                 pass
             except socket.error:
                 if self.is_running:
+                    self.socket = None
                     self.emit('socket_broken')
 
                     rospy.logwarn('Robot state: Disconnection detected, waiting %d sec before reconnect...', RECONNECT_DELAY)
                     time.sleep(RECONNECT_DELAY)
-                    self._connect_socket()
             except Exception as e:
                 error_message = 'Exception on robot state interface: {}'.format(str(e))
                 rospy.logerr(error_message)
@@ -168,8 +172,8 @@ class StreamingInterfaceConnection(EventEmitterMixin):
         self.on('socket_broken', callback)
 
     def connect(self):
-        self._connect_socket()
         self.is_running = True
+        self._connect_socket()
 
         self.thread = threading.Thread(target=self.socket_worker, name='streaming_interface_socket')
         self.thread.daemon = True
@@ -180,7 +184,7 @@ class StreamingInterfaceConnection(EventEmitterMixin):
             self.is_running = False
 
         if self.queue:
-            self.queue.put(QUEUE_TERMINATION_TOKEN)
+            self.queue.put((QUEUE_TERMINATION_TOKEN, None))
 
         if self.thread:
             self.thread.join(CONNECTION_TIMEOUT)
@@ -189,7 +193,7 @@ class StreamingInterfaceConnection(EventEmitterMixin):
 
     def reconnect(self):
         if self.queue:
-            self.queue.put(QUEUE_RECONNECTION_TOKEN)
+            self.queue.put((QUEUE_RECONNECTION_TOKEN, time.time()))
 
     def _connect_socket(self):
         try:
@@ -217,23 +221,21 @@ class StreamingInterfaceConnection(EventEmitterMixin):
         #     ... invoke service disconnection
         #     return
 
-        self.queue.put(message)
+        self.queue.put((QUEUE_MESSAGE_TOKEN, message))
 
     def socket_worker(self):
         rospy.loginfo('Streaming interface: Worker started')
+        last_successful_connect = None
+
         while self.is_running:
             try:
-                message = self.queue.get(True, QUEUE_TIMEOUT)
+                if not self.socket:
+                    self._connect_socket()
+                    last_successful_connect = time.time()
 
-                if message == QUEUE_TERMINATION_TOKEN:
-                    rospy.loginfo('Signal to terminate, closing socket')
-                    # TODO: RAPID side does not yet support graceful shutdown
-                    # SOCKET_CLOSE_COMMAND = 'stop\r\n'
-                    # self.socket.send(SOCKET_CLOSE_COMMAND)
-                    break
-                elif message == QUEUE_RECONNECTION_TOKEN:
-                    raise socket.error('Reconnection requested')
-                else:
+                token_type, message = self.queue.get(block=True, timeout=QUEUE_TIMEOUT)
+
+                if token_type == QUEUE_MESSAGE_TOKEN:
                     wire_message = WireProtocol.serialize(message)
                     _, writable, _ = select.select([], [self.socket], [])
 
@@ -246,15 +248,30 @@ class StreamingInterfaceConnection(EventEmitterMixin):
                         raise socket.error('Streaming socket connection broken')
 
                     self.emit('message_sent', message, wire_message)
+                elif token_type == QUEUE_TERMINATION_TOKEN:
+                    rospy.loginfo('Signal to terminate, closing socket')
+                    # TODO: RAPID side does not yet support graceful shutdown
+                    # SOCKET_CLOSE_COMMAND = 'stop\r\n'
+                    # self.socket.send(SOCKET_CLOSE_COMMAND)
+                    break
+                elif token_type == QUEUE_RECONNECTION_TOKEN:
+                    reconnection_timestamp = message
+                    if reconnection_timestamp > last_successful_connect:
+                        raise socket.error('Reconnection requested at {}'.format(message))
+                    else:
+                        rospy.loginfo('Ignoring stale reconnection request issued at {} because last successful connection was at {}'.format(
+                            reconnection_timestamp, last_successful_connect))
+                else:
+                    raise Exception('Unknown token type')
             except queue.Empty:
                 pass
             except socket.error:
                 if self.is_running:
+                    self.socket = None
                     self.emit('socket_broken')
 
                     rospy.logwarn('Streaming interface: Disconnection detected, waiting %d sec before reconnect...', RECONNECT_DELAY)
                     time.sleep(RECONNECT_DELAY)
-                    self._connect_socket()
             except Exception as e:
                 error_message = 'Exception on streaming interface worker: {}'.format(str(e))
                 rospy.logerr(error_message)
