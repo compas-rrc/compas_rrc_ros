@@ -1,7 +1,7 @@
 version: '3'
 services:
   abb-driver:
-    image: gramaziokohler/compas_rrc_driver
+    image: compasrrc/compas_rrc_driver
     container_name: abb-driver
     environment:
       - ROS_HOSTNAME=abb-driver
@@ -18,7 +18,7 @@ services:
       - robot_state_port:=30201
 
   ros-master:
-    image: gramaziokohler/compas_rrc_driver
+    image: compasrrc/compas_rrc_driver
     container_name: ros-master
     ports:
       - "11311:11311"
@@ -26,7 +26,7 @@ services:
       - roscore
 
   ros-bridge:
-    image: gramaziokohler/compas_rrc_driver
+    image: compasrrc/compas_rrc_driver
     container_name: ros-bridge
     environment:
       - ROS_HOSTNAME=ros-bridge

@@ -1,7 +1,7 @@
 version: '3'
 services:
   abb-driver-1:
-    image: gramaziokohler/compas_rrc_driver
+    image: compasrrc/compas_rrc_driver
     container_name: abb-driver-1
     environment:
       - ROS_HOSTNAME=abb-driver-1
@@ -19,7 +19,7 @@ services:
       - namespace:=robot1              # NOTE: Namespace of the first robot, to use when opening the connection from the client side
 
   abb-driver-2:
-    image: gramaziokohler/compas_rrc_driver
+    image: compasrrc/compas_rrc_driver
     container_name: abb-driver-2
     environment:
       - ROS_HOSTNAME=abb-driver-2
@@ -37,7 +37,7 @@ services:
       - namespace:=robot2              # NOTE: Namespace of the second robot, to use when opening the connection from the client side
 
   ros-master:
-    image: gramaziokohler/compas_rrc_driver
+    image: compasrrc/compas_rrc_driver
     container_name: ros-master
     ports:
       - "11311:11311"
@@ -45,7 +45,7 @@ services:
       - roscore
 
   ros-bridge:
-    image: gramaziokohler/compas_rrc_driver
+    image: compasrrc/compas_rrc_driver
     container_name: ros-bridge
     environment:
       - ROS_HOSTNAME=ros-bridge

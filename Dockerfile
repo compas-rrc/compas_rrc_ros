@@ -1,14 +1,10 @@
 # Container for running COMPAS RRC Driver
 #
 # Build:
-#  docker build --rm -f Dockerfile -t gramaziokohler/compas_rrc_driver .
-#
-# Usage outside DockerHub:
-#  docker save -o compas_rrc_driver-latest.tar gramaziokohler/compas_rrc_driver:latest
-#  docker load -i compas_rrc_driver-latest.tar
+#  docker build --rm -f Dockerfile -t compasrrc/compas_rrc_driver .
 #
 # Usage:
-#  docker pull gramaziokohler/compas_rrc_driver
+#  docker pull compasrrc/compas_rrc_driver
 
 FROM ros:kinetic-ros-core
 LABEL maintainer="Gonzalo Casas <casas@arch.ethz.ch>"
