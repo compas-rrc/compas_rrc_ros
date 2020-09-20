@@ -51,6 +51,10 @@ The launch files have the following parameters available:
 
 * `robot_ip`: [*mandatory*] IP address of the robot.
 * `robot_streaming_port`: [*optional*, `default=30101`] TCP port of the streaming interface of the robot.
-* `robot_state_port`: [*optional*, `default=30201`] TCP port of the state interface of the robot. 
+* `robot_state_port`: [*optional*, `default=30201`] TCP port of the state interface of the robot.
 * `sequence_check_mode`: [*optional*, `default=none`] Sequence check mode, valid options are: `none`, `all`, `incoming`, `outgoing`
 * `namespace`: [*optional*, `default='/'`] Allows to define a namespace in order to connect to multiple robots on the same instance. Defaults to root (`/`).
+
+## License
+
+This project is licensed under the terms of the [MIT License](/LICENSE).
