@@ -10,7 +10,7 @@
 
 The easiest option to use the ROS package is via Docker:
 
-* Download the image file and `docker-compose.yml` files to your computer
+* Download the `docker-compose.yml` file to your computer
 * To use it with a virtual controller (ABB RobotStudio) on the same computer, no further changes are needed.
 * To use it with a real robot, update the robot's IP address in `docker-compose.yml` file (e.g. `robot_ip:=192.168.0.100`)
 * To use it in other scenarios, check the [examples](examples) folder.
