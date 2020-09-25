@@ -20,22 +20,61 @@ RECONNECT_DELAY = 10            # In seconds
 QUEUE_MESSAGE_TOKEN = 0
 QUEUE_TERMINATION_TOKEN = -1
 QUEUE_RECONNECTION_TOKEN = -2
+SOCKET_MODE_SERVER = 1
+SOCKET_MODE_CLIENT = 2
 
+class SocketManager(EventEmitterMixin):
+    def __init__(self, host, port, socket_mode):
+        super(SocketManager, self).__init__()
+        self.socket_mode = socket_mode
 
-class RobotStateConnection(EventEmitterMixin):
-    def __init__(self, host, port):
-        super(RobotStateConnection, self).__init__()
-        self.is_running = False
         self.host = host
         self.port = port
 
-    def on_message(self, callback):
-        """Add an event handler to be triggered on message arrival."""
-        self.on('message', callback)
+    # TODO: Check if these options really can be shared on both client and server modes
+    def _set_socket_opts(self, sock):
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60)
+        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 10)
+        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6)
+
+    def _create_socket_server(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setblocking(0)
+        sock.bind(('', self.port))
+        self._set_socket_opts(sock)
+
+        # Non-blocking listen
+        sock.listen(backlog=5)
+
+        return sock
+
+    def _create_socket_client(self):
+        sock = socket.create_connection((self.host, self.port), CONNECTION_TIMEOUT)
+        self._set_socket_opts(sock)
+
+        return sock
+
+    def _create_socket(self):
+        if self.socket_mode == SOCKET_MODE_CLIENT:
+            return self._create_socket_client()
+        elif self.socket_mode == SOCKET_MODE_SERVER:
+            return self._create_socket_server()
+        else:
+            raise ValueError('Invalid socket mode')
 
     def on_socket_broken(self, callback):
         """Add an event handler to be triggered when the socket is broken."""
         self.on('socket_broken', callback)
+
+class RobotStateConnection(SocketManager):
+    def __init__(self, host, port, socket_mode):
+        super(RobotStateConnection, self).__init__(host, port, socket_mode)
+        self.is_running = False
+
+    def on_message(self, callback):
+        """Add an event handler to be triggered on message arrival."""
+        self.on('message', callback)
 
     def connect(self):
         self.is_running = True
@@ -52,16 +91,11 @@ class RobotStateConnection(EventEmitterMixin):
 
     def _connect_socket(self):
         try:
-            rospy.loginfo('Robot state: Connecting socket %s:%d', self.host, self.port)
-            self.socket = socket.create_connection((self.host, self.port), CONNECTION_TIMEOUT)
-            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-            self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60)
-            self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 10)
-            self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6)
-
-            rospy.loginfo('Robot state: Socket connected')
+            rospy.loginfo('Robot state: Creating socket %s:%d', self.host, self.port)
+            self.socket = self._create_socket()
+            rospy.loginfo('Robot state: Socket created')
         except:
-            rospy.logerr('Cannot connect robot state: %s:%d', self.host, self.port)
+            rospy.logerr('Cannot create robot state socket: %s:%d', self.host, self.port)
             raise
 
     def _disconnect_socket(self):
@@ -151,13 +185,10 @@ class RobotStateConnection(EventEmitterMixin):
         rospy.loginfo('Robot state: Worker stopped')
 
 
-class StreamingInterfaceConnection(EventEmitterMixin):
-    def __init__(self, host, port):
-        super(StreamingInterfaceConnection, self).__init__()
+class StreamingInterfaceConnection(SocketManager):
+    def __init__(self, host, port, socket_mode):
+        super(StreamingInterfaceConnection, self).__init__(host, port, socket_mode)
         self.is_running = False
-
-        self.host = host
-        self.port = port
 
         self.queue = queue.Queue()
         self.thread = None
@@ -166,10 +197,6 @@ class StreamingInterfaceConnection(EventEmitterMixin):
     def on_message_sent(self, callback):
         """Add an event handler to be triggered on message sent."""
         self.on('message_sent', callback)
-
-    def on_socket_broken(self, callback):
-        """Add an event handler to be triggered when the socket is broken."""
-        self.on('socket_broken', callback)
 
     def connect(self):
         self.is_running = True
@@ -197,16 +224,11 @@ class StreamingInterfaceConnection(EventEmitterMixin):
 
     def _connect_socket(self):
         try:
-            rospy.loginfo('Streaming interface: Connecting socket %s:%d', self.host, self.port)
-            self.socket = socket.create_connection((self.host, self.port), CONNECTION_TIMEOUT)
-            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-            self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60)
-            self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 10)
-            self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6)
-
-            rospy.loginfo('Streaming interface: Socket connected')
+            rospy.loginfo('Streaming interface: Creating socket %s:%d', self.host, self.port)
+            self.socket = self._create_socket()
+            rospy.loginfo('Streaming interface: Socket created')
         except:
-            rospy.logerr('Cannot connect streaming interface: %s:%d', self.host, self.port)
+            rospy.logerr('Cannot create streaming interface socket: %s:%d', self.host, self.port)
             raise
 
     def _disconnect_socket(self):
