@@ -323,11 +323,14 @@ def main():
     topic_provider = None
 
     try:
-        rospy.loginfo('Connecting robot %s (ports %d & %d, sequence check mode=%s)', robot_host, robot_streaming_port, robot_state_port, sequence_check_mode)
-        streaming_interface = StreamingInterfaceConnection(robot_host, robot_streaming_port)
+        # TODO: Temporary default value
+        socket_mode = SOCKET_MODE_SERVER
+
+        rospy.loginfo('Connecting robot %s (ports %d & %d, socket mode %d, sequence check mode=%s)', robot_host, robot_streaming_port, robot_state_port, socket_mode, sequence_check_mode)
+        streaming_interface = StreamingInterfaceConnection(robot_host, robot_streaming_port, socket_mode)
         streaming_interface.connect()
 
-        robot_state = RobotStateConnection(robot_host, robot_state_port)
+        robot_state = RobotStateConnection(robot_host, robot_state_port, socket_mode)
         robot_state.connect()
 
         # If a disconnect is detected on the robot state socket, it will try to reconnect
