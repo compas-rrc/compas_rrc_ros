@@ -44,8 +44,8 @@ class SocketManager(EventEmitterMixin):
         sock.bind(('', self.port))
         self._set_socket_opts(sock)
 
-        # Non-blocking listen
-        sock.listen(backlog=5)
+        # Non-blocking listen with 5 backlog connections
+        sock.listen(5)
 
         return sock
 
