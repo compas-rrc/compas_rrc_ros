@@ -1,10 +1,12 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>compas_rrc_driver</name>
-  <version>0.3.0</version>
+  <version>1.0.0</version>
   <description>COMPAS RRC: ROS Driver</description>
 
   <maintainer email="casas@arch.ethz.ch">Gonzalo Casas</maintainer>
+  <maintainer email="fleischmann@arch.ethz.ch">Philippe Fleischmann</maintainer>
+  <maintainer email="lyrenmann@arch.ethz.ch">Michael Lyrenmann</maintainer>
 
   <license>MIT</license>
 
