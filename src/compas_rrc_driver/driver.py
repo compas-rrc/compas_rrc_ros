@@ -23,6 +23,7 @@ QUEUE_RECONNECTION_TOKEN = -2
 SOCKET_MODE_SERVER = 1
 SOCKET_MODE_CLIENT = 2
 
+
 class SocketManager(EventEmitterMixin):
     def __init__(self, host, port, socket_mode):
         super(SocketManager, self).__init__()
@@ -66,6 +67,7 @@ class SocketManager(EventEmitterMixin):
     def on_socket_broken(self, callback):
         """Add an event handler to be triggered when the socket is broken."""
         self.on('socket_broken', callback)
+
 
 class RobotStateConnection(SocketManager):
     def __init__(self, host, port, socket_mode):
