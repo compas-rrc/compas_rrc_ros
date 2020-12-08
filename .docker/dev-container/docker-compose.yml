@@ -16,4 +16,4 @@ services:
       - /root/catkin_ws/scripts/main.launch
     volumes:
       - ./scripts:/root/catkin_ws/scripts
-      - ../..:/root/catkin_ws/src
+      - ../..:/root/catkin_ws/src/compas_rrc_ros
