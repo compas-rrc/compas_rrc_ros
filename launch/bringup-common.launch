@@ -1,10 +1,11 @@
 <launch>
-    <!-- robot_ip: IP-address of the robot's socket-messaging server -->
-    <arg name="robot_ip" doc="IP of the controller" />
+    <arg name="bind_ip" default="" doc="IP to bind the server socket to. If specified or if no robot_ip is specified, it will start RRC in server mode. If empty, it will bind to all interfaces." />
+    <arg name="robot_ip" default="" doc="IP of the controller. If specified, it will start RRC in client mode." />
     <arg name="robot_streaming_port" default="30101" doc="Port of the streaming interface" />
     <arg name="robot_state_port" default="30201" doc="Port of the state interface" />
     <arg name="sequence_check_mode" default="none" doc="Define sequence ID check mode. Supported: none|all|incoming|outgoing" />
 
+    <param name="bind_ip_address" type="str" value="$(arg bind_ip)"/>
     <param name="robot_ip_address" type="str" value="$(arg robot_ip)"/>
     <param name="robot_streaming_port" type="int" value="$(arg robot_streaming_port)"/>
     <param name="robot_state_port" type="int" value="$(arg robot_state_port)"/>

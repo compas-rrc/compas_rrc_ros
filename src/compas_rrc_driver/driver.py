@@ -42,8 +42,7 @@ class SocketManager(EventEmitterMixin):
     def _create_socket_server(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setblocking(0)
-        rospy.loginfo('Creating server on address= {}:{}'.format('', self.port))
-        sock.bind(('', self.port))
+        sock.bind((self.host, self.port))
         self._set_socket_opts(sock)
 
         # Non-blocking listen with 5 backlog connections
@@ -350,16 +349,30 @@ class StreamingInterfaceConnection(SocketManager):
 
 def main():
     DEBUG = True
-    ROBOT_HOST_DEFAULT = '127.0.0.1'
     TOPIC_MODE = 'message'
 
     log_level = rospy.DEBUG if DEBUG else rospy.INFO
     rospy.init_node('compas_rrc_driver', log_level=log_level)
 
-    robot_host = rospy.get_param('robot_ip_address', ROBOT_HOST_DEFAULT)
+    robot_host = rospy.get_param('robot_ip_address')
+    bind_ip_address = rospy.get_param('bind_ip_address')
     robot_streaming_port = rospy.get_param('robot_streaming_port')
     robot_state_port = rospy.get_param('robot_state_port')
     sequence_check_mode = rospy.get_param('sequence_check_mode')
+
+    if robot_host and not bind_ip_address:
+        socket_mode = SOCKET_MODE_CLIENT
+        socket_mode_name = 'client mode'
+        operation_text = 'connecting to robot'
+        host = robot_host
+    else:
+        socket_mode = SOCKET_MODE_SERVER
+        socket_mode_name = 'server mode'
+        operation_text = 'listening on'
+        host = bind_ip_address
+
+    rospy.loginfo('Starting RRC {}, {} {}:[{},{}]...'.format(socket_mode_name, operation_text, host, robot_streaming_port, robot_state_port))
+    rospy.loginfo('Sequence check mode={}'.format(sequence_check_mode))
 
     # Set protocol version in a parameter to enable version checks from the client side
     rospy.set_param('protocol_version', WireProtocol.VERSION)
@@ -369,14 +382,10 @@ def main():
     topic_provider = None
 
     try:
-        # TODO: Temporary default value
-        socket_mode = SOCKET_MODE_SERVER
-
-        rospy.loginfo('Connecting robot %s (ports %d & %d, socket mode %d, sequence check mode=%s)', robot_host, robot_streaming_port, robot_state_port, socket_mode, sequence_check_mode)
-        streaming_interface = StreamingInterfaceConnection(robot_host, robot_streaming_port, socket_mode)
+        streaming_interface = StreamingInterfaceConnection(host, robot_streaming_port, socket_mode)
         streaming_interface.connect()
 
-        robot_state = RobotStateConnection(robot_host, robot_state_port, socket_mode)
+        robot_state = RobotStateConnection(host, robot_state_port, socket_mode)
         robot_state.connect()
 
         # If a disconnect is detected on the robot state socket, it will try to reconnect
