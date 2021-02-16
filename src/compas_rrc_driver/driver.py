@@ -22,6 +22,67 @@ QUEUE_TERMINATION_TOKEN = -1
 QUEUE_RECONNECTION_TOKEN = -2
 
 
+def _set_socket_opts(sock):
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60)
+    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 10)
+    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1024)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 1024)
+
+
+class CurrentMessage(object):
+    def __init__(self):
+        self.clear()
+
+    @property
+    def state(self):
+        if len(self.header) < WireProtocol.FIXED_HEADER_LEN:
+            return 'recv_header'
+
+        if len(self.header) == WireProtocol.FIXED_HEADER_LEN:
+            if self.remaining_payload_bytes > 0:
+                return 'recv_payload'
+            elif self.remaining_payload_bytes == 0:
+                return 'message_complete'
+            else:
+                raise Exception('Payload exceeds expected length. Header={}, Payload={}'.format(self.header, self.payload))
+
+    @property
+    def protocol_version(self):
+        return WireProtocol.get_protocol_version(self.header)
+
+    @property
+    def payload_length(self):
+        message_length = WireProtocol.get_message_length(self.header)
+        payload_length = message_length - WireProtocol.FIXED_HEADER_LEN
+        return payload_length
+
+    @property
+    def remaining_payload_bytes(self):
+        return self.payload_length - len(self.payload)
+
+    @property
+    def remaining_header_bytes(self):
+        return WireProtocol.FIXED_HEADER_LEN - len(self.header)
+
+    def append_header_chunk(self, chunk):
+        if not chunk:
+            raise socket.error('Socket broken, header chunk empty')
+
+        self.header += chunk
+
+    def append_payload_chunk(self, chunk):
+        self.payload += chunk
+
+    def clear(self):
+        self.header = b''
+        self.payload = b''
+
+    def deserialize(self):
+        return WireProtocol.deserialize(self.header, self.payload)
+
+
 class RobotStateConnection(EventEmitterMixin):
     def __init__(self, host, port):
         super(RobotStateConnection, self).__init__()
@@ -54,10 +115,7 @@ class RobotStateConnection(EventEmitterMixin):
         try:
             rospy.loginfo('Robot state: Connecting socket %s:%d', self.host, self.port)
             self.socket = socket.create_connection((self.host, self.port), CONNECTION_TIMEOUT)
-            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-            self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60)
-            self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 10)
-            self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6)
+            _set_socket_opts(self.socket)
 
             rospy.loginfo('Robot state: Socket connected')
         except:
@@ -71,8 +129,7 @@ class RobotStateConnection(EventEmitterMixin):
 
     def socket_worker(self):
         rospy.loginfo('Robot state: Worker started')
-        current_header = b''
-        current_payload = b''
+        current_message = CurrentMessage()
         version_already_checked = False
 
         while self.is_running:
@@ -81,6 +138,8 @@ class RobotStateConnection(EventEmitterMixin):
                     self._connect_socket()
 
                 readable, _, failed = select.select([self.socket], [], [])
+                # TODO: Change to debug level
+                rospy.loginfo('Readable Socket selected, state={}, len current header={}, len current payload={}'.format(current_message.state, len(current_message.header), len(current_message.payload)))
 
                 if len(failed) > 0:
                     raise socket.error('No readable socket available')
@@ -88,48 +147,43 @@ class RobotStateConnection(EventEmitterMixin):
                 if len(readable) == 0:
                     raise socket.timeout('Socket selection timed out')
 
-                if len(current_header) < WireProtocol.FIXED_HEADER_LEN:
-                    header_chunk = readable[0].recv(WireProtocol.FIXED_HEADER_LEN)
-
-                    if not header_chunk:
-                        raise socket.error('Robot state socket broken')
-
-                    current_header += header_chunk
+                if current_message.state == 'recv_header':
+                    header_chunk = readable[0].recv(current_message.remaining_header_bytes)
+                    current_message.append_header_chunk(header_chunk)
                     continue
 
                 # We have a full header, we can proceed with payload
-                if len(current_header) == WireProtocol.FIXED_HEADER_LEN:
+                if current_message.state == 'recv_payload':
                     # Ensure incoming version check matches
                     if not version_already_checked:
-                        server_protocol_version = WireProtocol.get_protocol_version(current_header)
+                        server_protocol_version = current_message.protocol_version
 
                         if WireProtocol.VERSION != server_protocol_version:
                             raise Exception('Protocol version mismatch: Server={}, Client={}'.format(server_protocol_version, WireProtocol.VERSION))
 
                         version_already_checked = True
 
-                    message_length = WireProtocol.get_message_length(current_header)
-                    chunk = readable[0].recv(1024)
+                    # TODO: Add log to trace message fragmentation scenario
+                    chunk = readable[0].recv(current_message.remaining_payload_bytes)
 
                     try:
                         if not chunk:
                             rospy.logdebug('Nothing read in chuck recv, will continue')
                             continue
 
-                        current_payload += chunk
-                        if len(current_payload) == message_length - WireProtocol.FIXED_HEADER_LEN:
-                            message = WireProtocol.deserialize(current_header, current_payload)
+                        current_message.append_payload_chunk(chunk)
+
+                        if current_message.state == 'message_complete':
+                            message = current_message.deserialize()
                             # Emit global and individual events
                             self.emit('message', message)
                             self.emit(WireProtocol.get_response_key(message), message)
-                            current_payload = b''
+                            current_message.clear()
 
                     except Exception as me:
                         rospy.logerr('Exception while recv/deserialization of a message, skipping message. Exception=%s', str(me))
-                        current_payload = b''
-                    finally:
-                        # Ready for next
-                        current_header = b''
+                        rospy.logerr(str(current_message.payload))
+                        current_message.clear()
 
             except socket.timeout:
                 # The socket has a timeout, so that it does not block on recv()
@@ -199,10 +253,7 @@ class StreamingInterfaceConnection(EventEmitterMixin):
         try:
             rospy.loginfo('Streaming interface: Connecting socket %s:%d', self.host, self.port)
             self.socket = socket.create_connection((self.host, self.port), CONNECTION_TIMEOUT)
-            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-            self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60)
-            self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 10)
-            self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6)
+            _set_socket_opts(self.socket)
 
             rospy.loginfo('Streaming interface: Socket connected')
         except:
@@ -233,6 +284,7 @@ class StreamingInterfaceConnection(EventEmitterMixin):
                     self._connect_socket()
                     last_successful_connect = time.time()
 
+                # TODO: Check if we can lower the timeout to make sure we respond faster to failed socket
                 token_type, message = self.queue.get(block=True, timeout=QUEUE_TIMEOUT)
 
                 if token_type == QUEUE_MESSAGE_TOKEN:
