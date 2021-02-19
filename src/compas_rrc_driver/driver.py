@@ -14,9 +14,10 @@ try:
 except ImportError:
     import queue
 
-CONNECTION_TIMEOUT = 5          # In seconds
-QUEUE_TIMEOUT = 5               # In seconds
-RECONNECT_DELAY = 10            # In seconds
+CONNECTION_TIMEOUT = 5              # In seconds
+QUEUE_TIMEOUT = 5                   # In seconds
+RECONNECT_DELAY = 10                # In seconds
+SOCKET_SELECT_TIMEOUT = 60 * 10     # In seconds
 QUEUE_MESSAGE_TOKEN = 0
 QUEUE_TERMINATION_TOKEN = -1
 QUEUE_RECONNECTION_TOKEN = -2
@@ -137,7 +138,7 @@ class RobotStateConnection(EventEmitterMixin):
                 if not self.socket:
                     self._connect_socket()
 
-                readable, _, failed = select.select([self.socket], [], [])
+                readable, _, failed = select.select([self.socket], [], [], SOCKET_SELECT_TIMEOUT)
                 # TODO: Change to debug level
                 rospy.loginfo('Readable Socket selected, state={}, len current header={}, len current payload={}'.format(current_message.state, len(current_message.header), len(current_message.payload)))
 
@@ -188,7 +189,7 @@ class RobotStateConnection(EventEmitterMixin):
             except socket.timeout:
                 # The socket has a timeout, so that it does not block on recv()
                 # If it times out, it's ok, we just continue and re-start receiving
-                pass
+                rospy.logwarn('Robot state: Socket timeout, will retry to select socket')
             except socket.error:
                 if self.is_running:
                     self.socket = None
