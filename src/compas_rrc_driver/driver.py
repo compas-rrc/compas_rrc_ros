@@ -139,8 +139,7 @@ class RobotStateConnection(EventEmitterMixin):
                     self._connect_socket()
 
                 readable, _, failed = select.select([self.socket], [], [], SOCKET_SELECT_TIMEOUT)
-                # TODO: Change to debug level
-                rospy.loginfo('Readable Socket selected, state={}, len current header={}, len current payload={}'.format(current_message.state, len(current_message.header), len(current_message.payload)))
+                rospy.logdebug('Readable Socket selected, state={}, len current header={}, len current payload={}'.format(current_message.state, len(current_message.header), len(current_message.payload)))
 
                 if len(failed) > 0:
                     raise socket.error('No readable socket available')
@@ -189,7 +188,7 @@ class RobotStateConnection(EventEmitterMixin):
             except socket.timeout:
                 # The socket has a timeout, so that it does not block on recv()
                 # If it times out, it's ok, we just continue and re-start receiving
-                rospy.logwarn('Robot state: Socket timeout, will retry to select socket')
+                rospy.logdebug('Robot state: Socket timeout, will retry to select socket')
             except socket.error:
                 if self.is_running:
                     self.socket = None
