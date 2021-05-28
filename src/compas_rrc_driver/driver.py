@@ -126,6 +126,7 @@ class RobotStateConnection(SocketManager):
     def __init__(self, host, port, socket_mode):
         super(RobotStateConnection, self).__init__(host, port, socket_mode)
         self.is_running = False
+        self.socket = None
 
     def on_message(self, callback):
         """Add an event handler to be triggered on message arrival."""
@@ -133,7 +134,6 @@ class RobotStateConnection(SocketManager):
 
     def connect(self):
         self.is_running = True
-        self._connect_socket()
 
         self.thread = threading.Thread(target=self.socket_worker, name='robot_state_socket')
         self.thread.daemon = True
@@ -164,8 +164,6 @@ class RobotStateConnection(SocketManager):
         current_message = CurrentMessage()
         version_already_checked = False
         inputs = []
-        if self.socket:
-            inputs.append(self.socket)
 
         while self.is_running:
             try:
@@ -174,7 +172,7 @@ class RobotStateConnection(SocketManager):
                     inputs.append(self.socket)
 
                 readable, _, failed = select.select(inputs, inputs, inputs, SOCKET_SELECT_TIMEOUT)
-                rospy.logdebug('Readable Socket selected, state={}, len current header={}, len current payload={}'.format(current_message.state, len(current_message.header), len(current_message.payload)))
+                # rospy.logdebug('Readable Socket selected, state={}, len current header={}, len current payload={}'.format(current_message.state, len(current_message.header), len(current_message.payload)))
 
                 for fsocket in failed:
                     if fsocket in inputs:
@@ -184,7 +182,8 @@ class RobotStateConnection(SocketManager):
                 # if len(failed) > 0:
                 #     raise socket.error('No readable socket available')
 
-                # if len(readable) == 0:
+                if len(readable) == 0:
+                    continue
                 #     raise socket.timeout('Socket selection timed out')
 
                 # TODO: Check this
@@ -194,7 +193,7 @@ class RobotStateConnection(SocketManager):
                 rsocket = readable[0]
 
                 # If it's server mode, accept connection
-                if rsocket == self.socket:
+                if self.socket_mode == SOCKET_MODE_SERVER:
                     connection, client_addr = self.socket.accept()
                     rospy.loginfo('Robot state: Incoming connection from client {}'.format(client_addr))
                     connection.setblocking(0)
@@ -275,7 +274,6 @@ class StreamingInterfaceConnection(SocketManager):
 
     def connect(self):
         self.is_running = True
-        self._connect_socket()
 
         self.thread = threading.Thread(target=self.socket_worker, name='streaming_interface_socket')
         self.thread.daemon = True
@@ -325,8 +323,6 @@ class StreamingInterfaceConnection(SocketManager):
         rospy.loginfo('Streaming interface: Worker started')
         last_successful_connect = None
         streaming_sockets = []
-        if self.socket:
-            streaming_sockets.append(self.socket)
 
         while self.is_running:
             try:
