@@ -28,8 +28,9 @@ class RobotMessageTopicProvider(object):
         self.streaming_interface = streaming_interface
         self.robot_state = robot_state
 
+        # TODO: Verify topic queue sizes
         self.subscriber = rospy.Subscriber(topic_name_sub, msg.RobotMessage, self.ros_to_robot_handler)
-        self.publisher = rospy.Publisher(topic_name_pub, msg.RobotMessage)
+        self.publisher = rospy.Publisher(topic_name_pub, msg.RobotMessage, queue_size=1)
 
         self.robot_state.on_message(self.robot_to_ros_handler)
         self.robot_state.on_socket_broken(self._reset_sequence_id)

@@ -14,15 +14,15 @@ try:
 except ImportError:
     import queue
 
-CONNECTION_TIMEOUT = 5          # In seconds
-QUEUE_TIMEOUT = 5               # In seconds
-RECONNECT_DELAY = 10            # In seconds
+CONNECTION_TIMEOUT = 5              # In seconds
+QUEUE_TIMEOUT = 5                   # In seconds
+RECONNECT_DELAY = 10                # In seconds
+SOCKET_SELECT_TIMEOUT = 60 * 10     # In seconds
 QUEUE_MESSAGE_TOKEN = 0
 QUEUE_TERMINATION_TOKEN = -1
 QUEUE_RECONNECTION_TOKEN = -2
 SOCKET_MODE_SERVER = 1
 SOCKET_MODE_CLIENT = 2
-
 
 class SocketManager(EventEmitterMixin):
     def __init__(self, host, port, socket_mode):
@@ -38,6 +38,8 @@ class SocketManager(EventEmitterMixin):
         sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60)
         sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 10)
         sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1024)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 1024)
 
     def _create_socket_server(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -68,6 +70,57 @@ class SocketManager(EventEmitterMixin):
         """Add an event handler to be triggered when the socket is broken."""
         self.on('socket_broken', callback)
 
+class CurrentMessage(object):
+    def __init__(self):
+        self.clear()
+
+    @property
+    def state(self):
+        if len(self.header) < WireProtocol.FIXED_HEADER_LEN:
+            return 'recv_header'
+
+        if len(self.header) == WireProtocol.FIXED_HEADER_LEN:
+            if self.remaining_payload_bytes > 0:
+                return 'recv_payload'
+            elif self.remaining_payload_bytes == 0:
+                return 'message_complete'
+            else:
+                raise Exception('Payload exceeds expected length. Header={}, Payload={}'.format(self.header, self.payload))
+
+    @property
+    def protocol_version(self):
+        return WireProtocol.get_protocol_version(self.header)
+
+    @property
+    def payload_length(self):
+        message_length = WireProtocol.get_message_length(self.header)
+        payload_length = message_length - WireProtocol.FIXED_HEADER_LEN
+        return payload_length
+
+    @property
+    def remaining_payload_bytes(self):
+        return self.payload_length - len(self.payload)
+
+    @property
+    def remaining_header_bytes(self):
+        return WireProtocol.FIXED_HEADER_LEN - len(self.header)
+
+    def append_header_chunk(self, chunk):
+        if not chunk:
+            raise socket.error('Socket broken, header chunk empty')
+
+        self.header += chunk
+
+    def append_payload_chunk(self, chunk):
+        self.payload += chunk
+
+    def clear(self):
+        self.header = b''
+        self.payload = b''
+
+    def deserialize(self):
+        return WireProtocol.deserialize(self.header, self.payload)
+
 
 class RobotStateConnection(SocketManager):
     def __init__(self, host, port, socket_mode):
@@ -95,6 +148,7 @@ class RobotStateConnection(SocketManager):
         try:
             rospy.loginfo('Robot state: Creating socket %s:%d', self.host, self.port)
             self.socket = self._create_socket()
+
             rospy.loginfo('Robot state: Socket created')
         except:
             rospy.logerr('Cannot create robot state socket: %s:%d', self.host, self.port)
@@ -107,8 +161,7 @@ class RobotStateConnection(SocketManager):
 
     def socket_worker(self):
         rospy.loginfo('Robot state: Worker started')
-        current_header = b''
-        current_payload = b''
+        current_message = CurrentMessage()
         version_already_checked = False
         inputs = []
         if self.socket:
@@ -120,9 +173,8 @@ class RobotStateConnection(SocketManager):
                     self._connect_socket()
                     inputs.append(self.socket)
 
-                # rospy.loginfo('Robot state waiting for socket, len={}'.format(len(inputs)))
-                readable, _w, failed = select.select(inputs, inputs, inputs)
-                # rospy.loginfo('Robot state socket available: inputs={}, r={}, w={}, f={}'.format(len(inputs), len(readable), len(_w), len(failed)))
+                readable, _, failed = select.select(inputs, inputs, inputs, SOCKET_SELECT_TIMEOUT)
+                rospy.logdebug('Readable Socket selected, state={}, len current header={}, len current payload={}'.format(current_message.state, len(current_message.header), len(current_message.payload)))
 
                 for fsocket in failed:
                     if fsocket in inputs:
@@ -135,63 +187,63 @@ class RobotStateConnection(SocketManager):
                 # if len(readable) == 0:
                 #     raise socket.timeout('Socket selection timed out')
 
-                for rsocket in readable:
-                    # If it's server mode, accept connection
-                    if rsocket == self.socket:
-                        connection, client_addr = self.socket.accept()
-                        rospy.loginfo('Robot state: Incoming connection from client {}'.format(client_addr))
-                        connection.setblocking(0)
-                        inputs.append(connection)
-                        continue
+                # TODO: Check this
+                if len(readable) > 1:
+                    raise Exception('Why do we have more than one readable socket? Something is off')
 
-                    if len(current_header) < WireProtocol.FIXED_HEADER_LEN:
-                        header_chunk = rsocket.recv(WireProtocol.FIXED_HEADER_LEN)
+                rsocket = readable[0]
 
-                        if not header_chunk:
-                            raise socket.error('Robot state socket broken')
+                # If it's server mode, accept connection
+                if rsocket == self.socket:
+                    connection, client_addr = self.socket.accept()
+                    rospy.loginfo('Robot state: Incoming connection from client {}'.format(client_addr))
+                    connection.setblocking(0)
+                    inputs.append(connection)
+                    continue
 
-                        current_header += header_chunk
-                        continue
+                # Start receiving bytes
+                if current_message.state == 'recv_header':
+                    header_chunk = rsocket.recv(current_message.remaining_header_bytes)
+                    current_message.append_header_chunk(header_chunk)
+                    continue
 
-                    # We have a full header, we can proceed with payload
-                    if len(current_header) == WireProtocol.FIXED_HEADER_LEN:
-                        # Ensure incoming version check matches
-                        if not version_already_checked:
-                            server_protocol_version = WireProtocol.get_protocol_version(current_header)
+                # We have a full header, we can proceed with payload
+                if current_message.state == 'recv_payload':
+                    # Ensure incoming version check matches
+                    if not version_already_checked:
+                        server_protocol_version = current_message.protocol_version
 
-                            if WireProtocol.VERSION != server_protocol_version:
-                                raise Exception('Protocol version mismatch: Server={}, Client={}'.format(server_protocol_version, WireProtocol.VERSION))
+                        if WireProtocol.VERSION != server_protocol_version:
+                            raise Exception('Protocol version mismatch: Server={}, Client={}'.format(server_protocol_version, WireProtocol.VERSION))
 
-                            version_already_checked = True
+                        version_already_checked = True
 
-                        message_length = WireProtocol.get_message_length(current_header)
-                        chunk = rsocket.recv(1024)
+                    # TODO: Add log to trace message fragmentation scenario
+                    chunk = rsocket.recv(current_message.remaining_payload_bytes)
 
-                        try:
-                            if not chunk:
-                                rospy.logdebug('Nothing read in chuck recv, will continue')
-                                continue
+                    try:
+                        if not chunk:
+                            rospy.logdebug('Nothing read in chuck recv, will continue')
+                            continue
 
-                            current_payload += chunk
-                            if len(current_payload) == message_length - WireProtocol.FIXED_HEADER_LEN:
-                                message = WireProtocol.deserialize(current_header, current_payload)
-                                # Emit global and individual events
-                                self.emit('message', message)
-                                self.emit(WireProtocol.get_response_key(message), message)
-                                current_payload = b''
+                        current_message.append_payload_chunk(chunk)
 
-                        except Exception as me:
-                            rospy.logerr('Exception while recv/deserialization of a message, skipping message. Exception=%s', str(me))
-                            current_payload = b''
-                        finally:
-                            # Ready for next
-                            current_header = b''
+                        if current_message.state == 'message_complete':
+                            message = current_message.deserialize()
+                            # Emit global and individual events
+                            self.emit('message', message)
+                            self.emit(WireProtocol.get_response_key(message), message)
+                            current_message.clear()
+
+                    except Exception as me:
+                        rospy.logerr('Exception while recv/deserialization of a message, skipping message. Exception=%s', str(me))
+                        rospy.logerr(str(current_message.payload))
+                        current_message.clear()
 
             except socket.timeout:
-                rospy.loginfo('Socket timed out')
                 # The socket has a timeout, so that it does not block on recv()
                 # If it times out, it's ok, we just continue and re-start receiving
-                pass
+                rospy.logdebug('Robot state: Socket timeout, will retry to select socket')
             except socket.error:
                 if self.is_running:
                     self.socket = None
@@ -249,6 +301,7 @@ class StreamingInterfaceConnection(SocketManager):
         try:
             rospy.loginfo('Streaming interface: Creating socket %s:%d', self.host, self.port)
             self.socket = self._create_socket()
+
             rospy.loginfo('Streaming interface: Socket created')
         except:
             rospy.logerr('Cannot create streaming interface socket: %s:%d', self.host, self.port)
@@ -271,25 +324,25 @@ class StreamingInterfaceConnection(SocketManager):
     def socket_worker(self):
         rospy.loginfo('Streaming interface: Worker started')
         last_successful_connect = None
-        outputs = []
+        streaming_sockets = []
         if self.socket:
-            outputs.append(self.socket)
+            streaming_sockets.append(self.socket)
 
         while self.is_running:
             try:
                 if not self.socket:
                     self._connect_socket()
-                    outputs.append(self.socket)
+                    streaming_sockets.append(self.socket)
                     last_successful_connect = time.time()
 
                 # rospy.loginfo('Streaming interface waiting for socket, len={}'.format())
-                readable, writable, failed = select.select(outputs, outputs, outputs)
-                # rospy.loginfo('Streaming interface socket available: outputs={}, r={}, w={}, f={}'.format(len(outputs), len(readable), len(writable), len(failed)))
+                readable, writable, failed = select.select(streaming_sockets, streaming_sockets, streaming_sockets)
+                # rospy.loginfo('Streaming interface socket available: streaming_sockets={}, r={}, w={}, f={}'.format(len(streaming_sockets), len(readable), len(writable), len(failed)))
 
                 for fsocket in failed:
-                    if fsocket in outputs:
-                        outputs.remove(fsocket)
-                        rospy.loginfo('Removing socket from outputs, len={}'.format(len(outputs)))
+                    if fsocket in streaming_sockets:
+                        streaming_sockets.remove(fsocket)
+                        rospy.loginfo('Removing socket from streaming_sockets, len={}'.format(len(streaming_sockets)))
 
                 # if len(writable) == 0:
                 #     raise Exception('No writable socket available')
@@ -300,21 +353,26 @@ class StreamingInterfaceConnection(SocketManager):
                         connection, client_addr = self.socket.accept()
                         rospy.loginfo('Streaming interface: Incoming connection from client {}'.format(client_addr))
                         connection.setblocking(0)
-                        outputs.append(connection)
+                        streaming_sockets.append(connection)
                         continue
 
+                # TODO: Check if we can lower the timeout to make sure we respond faster to failed socket
                 token_type, message = self.queue.get(block=True, timeout=QUEUE_TIMEOUT)
 
                 if token_type == QUEUE_MESSAGE_TOKEN:
                     wire_message = WireProtocol.serialize(message)
+                    # TODO: Check this
+                    if len(writable) > 1:
+                        raise Exception('Why do we have more than one writable socket? Something is off')
+
                     for wsocket in writable:
                         rospy.loginfo('Sending on writable socket of {}'.format(len(writable)))
                         sent_bytes = wsocket.send(wire_message)
 
-                        if sent_bytes == 0:
-                            raise socket.error('Streaming socket connection broken')
+                    if sent_bytes == 0:
+                        raise socket.error('Streaming socket connection broken')
 
-                        self.emit('message_sent', message, wire_message)
+                    self.emit('message_sent', message, wire_message)
                 elif token_type == QUEUE_TERMINATION_TOKEN:
                     rospy.loginfo('Signal to terminate, closing socket')
                     # TODO: RAPID side does not yet support graceful shutdown
@@ -382,10 +440,11 @@ def main():
     topic_provider = None
 
     try:
-        streaming_interface = StreamingInterfaceConnection(host, robot_streaming_port, socket_mode)
+        rospy.loginfo('Connecting robot %s (ports %d & %d, sequence check mode=%s)', robot_host, robot_streaming_port, robot_state_port, sequence_check_mode)
+        streaming_interface = StreamingInterfaceConnection(robot_host, robot_streaming_port, socket_mode)
         streaming_interface.connect()
 
-        robot_state = RobotStateConnection(host, robot_state_port, socket_mode)
+        robot_state = RobotStateConnection(robot_host, robot_state_port, socket_mode)
         robot_state.connect()
 
         # If a disconnect is detected on the robot state socket, it will try to reconnect
