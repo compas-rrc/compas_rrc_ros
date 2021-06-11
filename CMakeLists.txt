@@ -157,7 +157,10 @@ include_directories(
 
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
-install(PROGRAMS src/compas_rrc_driver/driver.py
+install(
+  PROGRAMS
+    src/compas_rrc_driver/driver.py
+    src/compas_rrc_driver/abb/webservice_client.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
