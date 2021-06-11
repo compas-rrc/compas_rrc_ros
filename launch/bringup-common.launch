@@ -4,6 +4,10 @@
     <arg name="robot_streaming_port" default="30101" doc="Port of the streaming interface" />
     <arg name="robot_state_port" default="30201" doc="Port of the state interface" />
     <arg name="sequence_check_mode" default="none" doc="Define sequence ID check mode. Supported: none|all|incoming|outgoing" />
+    <arg name="enable_tcp_sockets" default="false" />
+    <arg name="enable_webservices" default="true" />
+    <arg name="webservices_username" default="Default User" doc="Username to connect to robot webservices" />
+    <arg name="webservices_password" default="robotics" doc="Password to connect to robot webservices" />
 
     <param name="bind_ip_address" type="str" value="$(arg bind_ip)"/>
     <param name="robot_ip_address" type="str" value="$(arg robot_ip)"/>
@@ -11,10 +15,20 @@
     <param name="robot_state_port" type="int" value="$(arg robot_state_port)"/>
     <param name="sequence_check_mode" type="str" value="$(arg sequence_check_mode)"/>
 
-    <!--
-    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
-    -->
-
     <!-- driver -->
-    <node name="$(anon compas_rrc_driver)" pkg="compas_rrc_driver" type="driver.py" respawn="true" output="screen" />
+    <node name="$(anon compas_rrc_driver)"
+          pkg="compas_rrc_driver"
+          type="driver.py"
+          respawn="true"
+          output="screen"
+          if="$(arg enable_tcp_sockets)"/>
+
+    <!-- webservice client -->
+    <node name="$(anon compas_rrc_webservice_client)"
+          pkg="compas_rrc_driver"
+          type="webservice_client.py"
+          respawn="true"
+          output="screen"
+          args="--webservice-username $(arg webservices_username) --webservice-password $(arg webservices_password)"
+          if="$(arg enable_webservices)"/>
 </launch>

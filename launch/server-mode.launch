@@ -6,8 +6,7 @@
     <arg name="unregister_timeout" value="28800" />
   </include>
   <include file="$(find compas_rrc_driver)/launch/bringup.launch">
-      <arg name="robot_ip" value="127.0.0.1" />
-      <!-- <arg name="bind_ip" value="0.0.0.0" /> -->
+      <arg name="bind_ip" value="0.0.0.0" />
       <arg name="robot_streaming_port" value="30101" />
       <arg name="robot_state_port" value="30201" />
       <arg name="namespace" value="/rob1" />
