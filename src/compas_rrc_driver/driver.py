@@ -1,10 +1,14 @@
 #!/usr/bin/env python
+import logging
+import os
 import select
 import socket
 import threading
 import time
+import timeit
 
 import rospy
+
 from compas_rrc_driver.event_emitter import EventEmitterMixin
 from compas_rrc_driver.protocol import WireProtocol
 from compas_rrc_driver.topics import RobotMessageTopicProvider
@@ -17,19 +21,34 @@ except ImportError:
 CONNECTION_TIMEOUT = 5              # In seconds
 QUEUE_TIMEOUT = 5                   # In seconds
 RECONNECT_DELAY = 10                # In seconds
-SOCKET_SELECT_TIMEOUT = 60 * 10     # In seconds
+SOCKET_SELECT_TIMEOUT = 10          # In seconds
 QUEUE_MESSAGE_TOKEN = 0
 QUEUE_TERMINATION_TOKEN = -1
 QUEUE_RECONNECTION_TOKEN = -2
+START_PROCESS_TIME = timeit.default_timer()
+TIMING_START = dict()
+
+LOGGER = logging.getLogger('compas_rrc_driver')
 
 
 def _set_socket_opts(sock):
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60)
-    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 10)
-    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1024)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 1024)
+
+
+def _get_perf_counter():
+    secs = timeit.default_timer() - START_PROCESS_TIME
+    return int(secs * 1000)
+
+
+def _get_logs_dir():
+    sourced_catkin_ws = os.environ.get('CMAKE_PREFIX_PATH', '').split(os.pathsep)[0]
+
+    if sourced_catkin_ws:
+        logs_dir = os.path.join(sourced_catkin_ws, '..', 'logs')
+    else:
+        logs_dir = os.path.dirname(__file__)
+
+    return logs_dir
 
 
 class CurrentMessage(object):
@@ -48,6 +67,8 @@ class CurrentMessage(object):
                 return 'message_complete'
             else:
                 raise Exception('Payload exceeds expected length. Header={}, Payload={}'.format(self.header, self.payload))
+        else:
+            raise Exception('Header exceeds expected length. Header={}, Payload={}'.format(self.header, self.payload))
 
     @property
     def protocol_version(self):
@@ -72,16 +93,22 @@ class CurrentMessage(object):
             raise socket.error('Socket broken, header chunk empty')
 
         self.header += chunk
+        self.add_perf_marker('header_recv')
 
     def append_payload_chunk(self, chunk):
         self.payload += chunk
+        self.add_perf_marker('payload_recv')
 
     def clear(self):
         self.header = b''
         self.payload = b''
+        self.timing = list()
 
     def deserialize(self):
         return WireProtocol.deserialize(self.header, self.payload)
+
+    def add_perf_marker(self, label):
+        self.timing.append((label, _get_perf_counter()))
 
 
 class RobotStateConnection(EventEmitterMixin):
@@ -116,6 +143,7 @@ class RobotStateConnection(EventEmitterMixin):
         try:
             rospy.loginfo('Robot state: Connecting socket %s:%d', self.host, self.port)
             self.socket = socket.create_connection((self.host, self.port), CONNECTION_TIMEOUT)
+            self.socket.settimeout(None)
             _set_socket_opts(self.socket)
 
             rospy.loginfo('Robot state: Socket connected')
@@ -138,8 +166,9 @@ class RobotStateConnection(EventEmitterMixin):
                 if not self.socket:
                     self._connect_socket()
 
-                readable, _, failed = select.select([self.socket], [], [], SOCKET_SELECT_TIMEOUT)
-                rospy.logdebug('Readable Socket selected, state={}, len current header={}, len current payload={}'.format(current_message.state, len(current_message.header), len(current_message.payload)))
+                current_message.add_perf_marker('select_before')
+                readable, _writable, failed = select.select([self.socket], [], [self.socket], SOCKET_SELECT_TIMEOUT)
+                current_message.add_perf_marker('select_after')
 
                 if len(failed) > 0:
                     raise socket.error('No readable socket available')
@@ -148,9 +177,11 @@ class RobotStateConnection(EventEmitterMixin):
                     raise socket.timeout('Socket selection timed out')
 
                 if current_message.state == 'recv_header':
+                    current_message.add_perf_marker('recv_before')
                     header_chunk = readable[0].recv(current_message.remaining_header_bytes)
                     current_message.append_header_chunk(header_chunk)
-                    continue
+                    # NOTE: we rely on the fact that socket will still be readable after header
+                    # so, instead of continuing to the next iteration, we continue to the next line and read payload
 
                 # We have a full header, we can proceed with payload
                 if current_message.state == 'recv_payload':
@@ -163,7 +194,6 @@ class RobotStateConnection(EventEmitterMixin):
 
                         version_already_checked = True
 
-                    # TODO: Add log to trace message fragmentation scenario
                     chunk = readable[0].recv(current_message.remaining_payload_bytes)
 
                     try:
@@ -175,9 +205,21 @@ class RobotStateConnection(EventEmitterMixin):
 
                         if current_message.state == 'message_complete':
                             message = current_message.deserialize()
+
                             # Emit global and individual events
                             self.emit('message', message)
                             self.emit(WireProtocol.get_response_key(message), message)
+
+                            if LOGGER.getEffectiveLevel() >= logging.DEBUG:
+                                timing_sent_to_topic = _get_perf_counter()
+                                ts = TIMING_START[message.feedback_id]
+                                LOGGER.debug('F-ID={}, S-ID={}, {}, sent_to_topic={}, msg_len={}'.format(
+                                            message.feedback_id,
+                                            message.sequence_id,
+                                            ', '.join(['{}={}'.format(k, v - ts) for k, v in current_message.timing]),
+                                            timing_sent_to_topic - ts,
+                                            len(current_message.header) + len(current_message.payload)))
+
                             current_message.clear()
 
                     except Exception as me:
@@ -185,11 +227,14 @@ class RobotStateConnection(EventEmitterMixin):
                         rospy.logerr(str(current_message.payload))
                         current_message.clear()
 
-            except socket.timeout:
+            except socket.timeout as ste:
                 # The socket has a timeout, so that it does not block on recv()
                 # If it times out, it's ok, we just continue and re-start receiving
-                rospy.logdebug('Robot state: Socket timeout, will retry to select socket')
-            except socket.error:
+                pass
+            except socket.error as se:
+                error_message = 'Socket error on robot state interface: {}'.format(str(se))
+                rospy.logerr(error_message)
+
                 if self.is_running:
                     self.socket = None
                     self.emit('socket_broken')
@@ -288,6 +333,10 @@ class StreamingInterfaceConnection(EventEmitterMixin):
                 token_type, message = self.queue.get(block=True, timeout=QUEUE_TIMEOUT)
 
                 if token_type == QUEUE_MESSAGE_TOKEN:
+                    if LOGGER.getEffectiveLevel() >= logging.DEBUG:
+                        timing_incoming = _get_perf_counter()
+                        TIMING_START[message.sequence_id] = timing_incoming
+
                     wire_message = WireProtocol.serialize(message)
                     _, writable, _ = select.select([], [self.socket], [])
 
@@ -295,6 +344,10 @@ class StreamingInterfaceConnection(EventEmitterMixin):
                         raise Exception('No writable socket available')
 
                     sent_bytes = writable[0].send(wire_message)
+
+                    if LOGGER.getEffectiveLevel() >= logging.DEBUG:
+                        timing_sent = _get_perf_counter()
+                        LOGGER.debug('S-ID={}, , sent_to_robot={}, incoming={}, msg_len={}'.format(message.sequence_id, timing_sent - timing_incoming, timing_incoming, len(wire_message)))
 
                     if sent_bytes == 0:
                         raise socket.error('Streaming socket connection broken')
@@ -336,6 +389,14 @@ def main():
     DEBUG = True
     ROBOT_HOST_DEFAULT = '127.0.0.1'
     TOPIC_MODE = 'message'
+
+    LOGGER.setLevel(logging.DEBUG if DEBUG else logging.INFO)
+
+    # if DEBUG:
+    #     fh = logging.FileHandler(os.path.join(_get_logs_dir(), 'message-trace.log'))
+    #     ff = logging.Formatter('%(asctime)s %(levelname)s %(message)s', datefmt='%H:%M:%S')
+    #     fh.setFormatter(ff)
+    #     LOGGER.addHandler(fh)
 
     log_level = rospy.DEBUG if DEBUG else rospy.INFO
     rospy.init_node('compas_rrc_driver', log_level=log_level)
