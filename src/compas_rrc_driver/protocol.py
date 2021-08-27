@@ -37,6 +37,10 @@ class WireProtocolVersion1(object):
         string_values = message.string_values
         float_values = message.float_values
 
+        # ASCII Encode strings
+        instruction = instruction.encode('ascii') if hasattr(instruction, 'encode') else instruction
+        feedback = feedback.encode('ascii') if hasattr(feedback, 'encode') else feedback
+
         # Build command
         payload_format = '3I{}s2I{}sI'.format(len(instruction), len(feedback))
         payload = [message.sequence_id, exec_level, len(instruction), instruction, feedback_level, len(feedback), feedback, feedback_id]
@@ -94,6 +98,7 @@ class WireProtocolVersion1(object):
 
         # Read instruction
         instruction, = struct.unpack(cls.BYTE_ORDER + str(instruction_len) + 's', payload[start_pos:start_pos + instruction_len])
+        instruction = instruction.decode('ascii') if hasattr(instruction, 'decode') else instruction
         start_pos += instruction_len
 
         # Read feedback message
@@ -104,6 +109,7 @@ class WireProtocolVersion1(object):
             cls.BYTE_ORDER + 'I', payload[start_pos:start_pos + 4])
         start_pos += 4
         feedback, = struct.unpack(cls.BYTE_ORDER + str(feedback_len) + 's', payload[start_pos:start_pos + feedback_len])
+        feedback = feedback.decode('ascii') if hasattr(feedback, 'decode') else feedback
         start_pos += feedback_len
 
         # Read feedback ID
@@ -121,6 +127,7 @@ class WireProtocolVersion1(object):
             str_len, = struct.unpack(cls.BYTE_ORDER + 'I', payload[start_pos:start_pos + 4])
             start_pos += 4
             string_value, = struct.unpack(cls.BYTE_ORDER + str(str_len) + 's', payload[start_pos:start_pos + str_len])
+            string_value = string_value.decode('ascii') if hasattr(string_value, 'decode') else string_value
             string_values.append(string_value)
             start_pos += str_len
 
