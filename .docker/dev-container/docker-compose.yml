@@ -1,0 +1,20 @@
+version: '2'
+services:
+  ros-rrc-dev:
+    image: compasrrc/compas_rrc_driver:v1.1.2-alpha
+    container_name: ros-rrc-dev
+    environment:
+      - ROS_HOSTNAME=ros-rrc-dev
+      - ROS_MASTER_URI=http://ros-rrc-dev:11311
+      - ROS_LANG_DISABLE=genlisp:gennodejs:geneus
+    ports:
+      - "9090:9090"
+      - "30101:30101"
+      - "30201:30201"
+    command:
+      - roslaunch
+      - /root/catkin_ws/scripts/main.launch
+    volumes:
+      - ./scripts:/root/catkin_ws/scripts
+      - ./logs:/root/catkin_ws/logs
+    #   - ../..:/root/catkin_ws/src/compas_rrc_ros

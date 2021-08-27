@@ -1,0 +1,24 @@
+<launch>
+  <arg name="debug" default="false" />
+  <arg name="limited" default="false"/>
+
+  <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch">
+    <arg name="unregister_timeout" value="28800" />
+  </include>
+  <include file="$(find compas_rrc_driver)/launch/bringup.launch">
+      <!-- Use this to connect ROS RRC running on Windows to RobotStudio -->
+      <arg name="robot_ip" value="127.0.0.1" />
+
+      <!-- Use this to connect ROS RRC to a real robot -->
+      <!-- <arg name="robot_ip" value="192.168.125.1" /> -->
+
+      <!-- Use this to connect ROS RRC running on Docker to RobotStudio -->
+      <!-- <arg name="robot_ip" value="host.docker.internal" /> -->
+
+      <!-- Use this to connect ROS RRC in client mode -->
+      <!-- <arg name="bind_ip" value="0.0.0.0" /> -->
+      <arg name="robot_streaming_port" value="30101" />
+      <arg name="robot_state_port" value="30201" />
+      <arg name="namespace" value="/rob1" />
+  </include>
+</launch>
