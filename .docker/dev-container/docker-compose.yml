@@ -17,4 +17,4 @@ services:
     volumes:
       - ./scripts:/root/catkin_ws/scripts
       - ./logs:/root/catkin_ws/logs
-    #   - ../..:/root/catkin_ws/src/compas_rrc_ros
+    #   - ../..:/root/catkin_ws/src/compas_rrc_driver
