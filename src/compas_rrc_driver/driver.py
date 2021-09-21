@@ -33,6 +33,10 @@ LOGGER = logging.getLogger('compas_rrc_driver')
 
 def _set_socket_opts(sock):
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+    # The following options make sure keep alive is active, otherwise the socket closes after about 5 or 6 minutes
+    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60)
+    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 10)
+    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6)
 
 
 def _get_perf_counter():
