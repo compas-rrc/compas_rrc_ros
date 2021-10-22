@@ -9,9 +9,9 @@ class SequenceCheckModes(object):
     OUTGOING = 'outgoing'
 
 
-class RobotMessageTopicProvider(object):
+class RobotMessageTopicAdapter(object):
     def __init__(self, topic_name_sub, topic_name_pub, streaming_interface, robot_state, options=None):
-        super(RobotMessageTopicProvider, self).__init__()
+        super(RobotMessageTopicAdapter, self).__init__()
 
         self._publish_lock = Lock()
         self._receive_lock = Lock()

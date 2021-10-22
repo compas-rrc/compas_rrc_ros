@@ -11,7 +11,7 @@ import rospy
 
 from compas_rrc_driver.event_emitter import EventEmitterMixin
 from compas_rrc_driver.protocol import WireProtocol
-from compas_rrc_driver.topics import RobotMessageTopicProvider
+from compas_rrc_driver.topics import RobotMessageTopicAdapter
 
 try:
     import Queue as queue
@@ -441,7 +441,7 @@ def main():
             robot_state.on_message(message_received_log)
 
         options = dict(sequence_check_mode=sequence_check_mode)
-        topic_provider = RobotMessageTopicProvider('robot_command', 'robot_response', streaming_interface, robot_state, options=options)
+        topic_provider = RobotMessageTopicAdapter('robot_command', 'robot_response', streaming_interface, robot_state, options=options)
 
         rospy.spin()
     finally:
