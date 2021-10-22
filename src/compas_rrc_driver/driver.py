@@ -392,7 +392,6 @@ class StreamingInterfaceConnection(EventEmitterMixin):
 def main():
     DEBUG = True
     ROBOT_HOST_DEFAULT = '127.0.0.1'
-    TOPIC_MODE = 'message'
 
     LOGGER.setLevel(logging.DEBUG if DEBUG else logging.INFO)
 
@@ -441,9 +440,8 @@ def main():
         if DEBUG:
             robot_state.on_message(message_received_log)
 
-        if TOPIC_MODE == 'message':
-            options = dict(sequence_check_mode=sequence_check_mode)
-            topic_provider = RobotMessageTopicProvider('robot_command', 'robot_response', streaming_interface, robot_state, options=options)
+        options = dict(sequence_check_mode=sequence_check_mode)
+        topic_provider = RobotMessageTopicProvider('robot_command', 'robot_response', streaming_interface, robot_state, options=options)
 
         rospy.spin()
     finally:
