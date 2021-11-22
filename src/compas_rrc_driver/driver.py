@@ -12,6 +12,8 @@ import rospy
 from compas_rrc_driver.event_emitter import EventEmitterMixin
 from compas_rrc_driver.protocol import WireProtocol
 from compas_rrc_driver.topics import RobotMessageTopicAdapter
+from compas_rrc_driver.topics import SystemMessageTopicAdapter
+from compas_rrc_driver.abb import WebserviceInterface as ABBWebserviceInterface
 
 try:
     import Queue as queue
@@ -27,6 +29,7 @@ QUEUE_TERMINATION_TOKEN = -1
 QUEUE_RECONNECTION_TOKEN = -2
 START_PROCESS_TIME = timeit.default_timer()
 TIMING_START = dict()
+SYSTEM_MESSAGE_INTERFACE_TYPES = dict(ABB=ABBWebserviceInterface)
 
 LOGGER = logging.getLogger('compas_rrc_driver')
 
@@ -392,6 +395,7 @@ class StreamingInterfaceConnection(EventEmitterMixin):
 def main():
     DEBUG = True
     ROBOT_HOST_DEFAULT = '127.0.0.1'
+    ROBOT_TYPE_DEFAULT = 'ABB'
 
     LOGGER.setLevel(logging.DEBUG if DEBUG else logging.INFO)
 
@@ -409,14 +413,32 @@ def main():
     robot_state_port = rospy.get_param('robot_state_port')
     sequence_check_mode = rospy.get_param('sequence_check_mode')
 
+    # system interface params
+    robot_type = rospy.get_param('robot_type', ROBOT_TYPE_DEFAULT)
+
     # Set protocol version in a parameter to enable version checks from the client side
     rospy.set_param('protocol_version', WireProtocol.VERSION)
 
     streaming_interface = None
     robot_state = None
-    topic_provider = None
+    topic_adapter = None
+    system_interface = None
 
     try:
+        rospy.loginfo('Connecting system message interface %s', robot_host)
+        # TODO: change this to plugins
+        if robot_type not in SYSTEM_MESSAGE_INTERFACE_TYPES:
+            raise Exception('Robot type {} has no supported system message interface'.format(robot_type))
+
+        WebserviceInterface = SYSTEM_MESSAGE_INTERFACE_TYPES[robot_type]
+
+        prefix = rospy.get_namespace().replace('/', '').upper()
+        robot_user = os.environ[prefix + '_ROBOT_USER']
+        robot_pass = os.environ[prefix + '_ROBOT_PASS']
+
+        system_interface = WebserviceInterface(robot_host, robot_user, robot_pass)
+        system_topic_adapter = SystemMessageTopicAdapter('robot_command_system', 'robot_response_system', system_interface)
+
         rospy.loginfo('Connecting robot %s (ports %d & %d, sequence check mode=%s)', robot_host, robot_streaming_port, robot_state_port, sequence_check_mode)
         streaming_interface = StreamingInterfaceConnection(robot_host, robot_streaming_port)
         streaming_interface.connect()
@@ -441,13 +463,17 @@ def main():
             robot_state.on_message(message_received_log)
 
         options = dict(sequence_check_mode=sequence_check_mode)
-        topic_provider = RobotMessageTopicAdapter('robot_command', 'robot_response', streaming_interface, robot_state, options=options)
+        topic_adapter = RobotMessageTopicAdapter('robot_command', 'robot_response', streaming_interface, robot_state, options=options)
 
         rospy.spin()
     finally:
-        if topic_provider:
-            rospy.loginfo('Disconnecting topic provider...')
-            topic_provider.disconnect()
+        if topic_adapter:
+            rospy.loginfo('Disconnecting topic adapter...')
+            topic_adapter.disconnect()
+
+        if system_topic_adapter:
+            rospy.loginfo('Disconnecting system topic adapter...')
+            system_topic_adapter.disconnect()
 
         if streaming_interface:
             rospy.loginfo('Disconnecting streaming interface...')

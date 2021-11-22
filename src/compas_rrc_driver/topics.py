@@ -35,7 +35,7 @@ class RobotMessageTopicAdapter(object):
         self.robot_state.on_message(self.robot_to_ros_handler)
         self.robot_state.on_socket_broken(self._reset_sequence_id)
 
-        rospy.loginfo('Topic provider started. Subscribed to %s, publishing to %s', topic_name_sub, topic_name_pub)
+        rospy.loginfo('Topic adapter started. Subscribed to %s, publishing to %s', topic_name_sub, topic_name_pub)
 
     def _reset_sequence_id(self):
         with self._publish_lock:
@@ -76,6 +76,43 @@ class RobotMessageTopicAdapter(object):
         try:
             self.subscriber.unregister()
             self.publisher.unregister()
-            rospy.loginfo('Topic provider disconnected')
+            rospy.loginfo('Topic adapter disconnected')
+        except Exception as e:
+            rospy.logerr(e)
+
+
+class SystemMessageTopicAdapter(object):
+    def __init__(self, topic_name_sub, topic_name_pub, system_interface):
+        super(SystemMessageTopicAdapter, self).__init__()
+        self.system_interface = system_interface
+        # TODO: Verify topic queue sizes
+        self.subscriber = rospy.Subscriber(topic_name_sub, msg.RobotMessage, self.ros_to_robot_handler)
+        self.publisher = rospy.Publisher(topic_name_pub, msg.RobotMessage, queue_size=1)
+
+        rospy.loginfo('System Topic adapter started. Subscribed to %s, publishing to %s', topic_name_sub, topic_name_pub)
+
+    def ros_to_robot_handler(self, ros_message):
+        """Handle messages from ROS topics to the robot controller"""
+        try:
+            response = self.system_interface.execute_instruction(ros_message)
+            if response is not None:
+                self.handle_response(response)
+        except Exception as e:
+            rospy.logerr(e)
+            raise e
+
+    def handle_response(self, response):
+        """Handle messages from the robot controller to ROS topic."""
+        try:
+            self.publisher.publish(response.to_ros_message(msg.RobotMessage))
+        except Exception as e:
+            rospy.logerr(e)
+            raise e
+
+    def disconnect(self):
+        try:
+            self.subscriber.unregister()
+            self.publisher.unregister()
+            rospy.loginfo('Topic adapter disconnected')
         except Exception as e:
             rospy.logerr(e)
