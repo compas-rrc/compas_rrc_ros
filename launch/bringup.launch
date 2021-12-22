@@ -1,9 +1,9 @@
 <launch>
-    <arg name="robot_ip" doc="IP of the controller" />
+    <arg name="robot_ip" default="192.168.1.10" doc="IP of the controller" />
     <arg name="robot_streaming_port" default="30101" doc="Port of the streaming interface" />
     <arg name="robot_state_port" default="30201" doc="Port of the state interface" />
     <arg name="sequence_check_mode" default="none" doc="Define sequence ID check mode. Supported: none|all|incoming|outgoing" />
-    <arg name="namespace" default="/" doc="Allows to define a namespace in order to connect to multiple robots. Defaults to root (ie /)." />
+    <arg name="namespace" default="/rob1" doc="Allows to define a namespace in order to connect to multiple robots. Defaults to root (ie /)." />
 
     <group ns="$(arg namespace)">
         <include file="$(find compas_rrc_driver)/launch/bringup-common.launch">
