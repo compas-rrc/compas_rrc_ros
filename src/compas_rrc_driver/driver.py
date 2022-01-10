@@ -13,7 +13,7 @@ from compas_rrc_driver.event_emitter import EventEmitterMixin
 from compas_rrc_driver.protocol import WireProtocol
 from compas_rrc_driver.topics import RobotMessageTopicAdapter
 from compas_rrc_driver.topics import SystemMessageTopicAdapter
-from compas_rrc_driver.abb import WebserviceInterface as ABBWebserviceInterface
+from compas_rrc_driver.abb import build_system_message_interface as abb_system_message_interface_factory
 
 try:
     import Queue as queue
@@ -29,7 +29,7 @@ QUEUE_TERMINATION_TOKEN = -1
 QUEUE_RECONNECTION_TOKEN = -2
 START_PROCESS_TIME = timeit.default_timer()
 TIMING_START = dict()
-SYSTEM_MESSAGE_INTERFACE_TYPES = dict(ABB=ABBWebserviceInterface)
+SYSTEM_MESSAGE_INTERFACE_FACTORIES = dict(ABB=abb_system_message_interface_factory)
 
 LOGGER = logging.getLogger('compas_rrc_driver')
 
@@ -423,20 +423,21 @@ def main():
     robot_state = None
     topic_adapter = None
     system_interface = None
+    system_topic_adapter = None
 
     try:
         rospy.loginfo('Connecting system message interface %s', robot_host)
         # TODO: change this to plugins
-        if robot_type not in SYSTEM_MESSAGE_INTERFACE_TYPES:
+        if robot_type not in SYSTEM_MESSAGE_INTERFACE_FACTORIES:
             raise Exception('Robot type {} has no supported system message interface'.format(robot_type))
 
-        WebserviceInterface = SYSTEM_MESSAGE_INTERFACE_TYPES[robot_type]
+        build_system_message_interface = SYSTEM_MESSAGE_INTERFACE_FACTORIES[robot_type]
 
         prefix = rospy.get_namespace().replace('/', '').upper()
         robot_user = os.environ[prefix + '_ROBOT_USER']
         robot_pass = os.environ[prefix + '_ROBOT_PASS']
 
-        system_interface = WebserviceInterface(robot_host, robot_user, robot_pass)
+        system_interface = build_system_message_interface(robot_host, robot_user, robot_pass)
         system_topic_adapter = SystemMessageTopicAdapter('robot_command_system', 'robot_response_system', system_interface)
 
         rospy.loginfo('Connecting robot %s (ports %d & %d, sequence check mode=%s)', robot_host, robot_streaming_port, robot_state_port, sequence_check_mode)

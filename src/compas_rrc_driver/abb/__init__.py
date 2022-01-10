@@ -1,3 +1,3 @@
-from .webservice import WebserviceInterface
+from .webservice import build_system_message_interface
 
-__all__ = ['WebserviceInterface']
+__all__ = ['build_system_message_interface']

@@ -4,6 +4,8 @@ import requests
 
 from compas_rrc_driver.message import Message
 
+FEEDBACK_DONE_STRING = 'Done'
+FEEDBACK_ERROR_STRING = 'WSFError'
 
 class WebServiceInstructionError(Exception):
     pass
@@ -78,7 +80,7 @@ class WebserviceInterfaceAdapter(object):
 
         result = self.ws.do_post(path, data)
 
-        return 'Done', (), ()
+        return (), ()
 
     def start(self):
         path = '/rw/rapid/execution/?action=start'
@@ -86,7 +88,7 @@ class WebserviceInterfaceAdapter(object):
 
         result = self.ws.do_post(path, data)
 
-        return 'Done', (), ()
+        return (), ()
 
     def stop(self):
         path = '/rw/rapid/execution/?action=stop'
@@ -94,18 +96,34 @@ class WebserviceInterfaceAdapter(object):
 
         result = self.ws.do_post(path, data)
 
-        return 'Done', (), ()
+        return (), ()
 
     def reset_program_pointer(self):
         path = '/rw/rapid/execution/?action=resetpp'
 
         result = self.ws.do_post(path)
 
-        return 'Done', (), ()
+        return (), ()
+
+    def custom_instruction(self, message):
+        ws_call = json.loads(message.instruction)
+        path = ws_call['path']
+        method = ws_call.get('method', 'GET')
+
+        if method == 'GET':
+            result = self.ws.do_get(path)
+        elif method == 'POST':
+            data = ws_call.get('data')
+            result = self.ws.do_post(path, data)
+        else:
+            raise Exception('Invalid method name={}'.format(method))
+
+        return json.dumps(result)
 
     def execute_instruction(self, message):
         # TODO: Decide what to do with this setting
         exec_level = message.exec_level
+        instruction = message.instruction
 
         kwargs = dict()
         if message.string_values:
@@ -113,16 +131,30 @@ class WebserviceInterfaceAdapter(object):
         if message.float_values:
             kwargs['float_values'] = message.float_values
 
-        try:
-            fn = getattr(self, message.instruction)
-            result, return_strings, return_floats = fn(**kwargs)
+        result = None
+        return_strings = []
+        return_floats = []
 
-            if message.feedback_level == 0:
-                return
-        except AttributeError:
-            raise WebServiceInstructionError('No implemention found for instruction="{}"'.format(message.instruction))
+        if hasattr(self, instruction):
+            try:
+                fn = getattr(self, instruction)
+                # NOTE: Maybe we need to change this so that both custom and non-custom instructions
+                # return json output in the result/feedback field so that they are more consistent
+                return_strings, return_floats = fn(**kwargs)
+                result = FEEDBACK_DONE_STRING
+            except Exception:
+                result = FEEDBACK_ERROR_STRING
+        else:
+            try:
+                result = self.custom_instruction(message)
+                instruction = 'custom_instruction'
+            except json.decoder.JSONDecodeError:
+                raise WebServiceInstructionError('No implemention found for instruction="{}"'.format(instruction))
 
-        return Message(message.instruction, feedback_id=message.sequence_id, feedback=result, string_values=return_strings, float_values=return_floats)
+        if message.feedback_level == 0:
+            return
+
+        return Message(instruction, feedback_id=message.sequence_id, feedback=result, string_values=return_strings, float_values=return_floats)
 
 class WebserviceInterface(object):
     def __init__(self, host, username='Default User', password='robotics'):
@@ -133,6 +165,7 @@ class WebserviceInterface(object):
 
     def do_get(self, path):
         url = self._build_url(path)
+        print('Starting request to:' + url)
         response = self.session.get(url, auth=self.auth)
         return self._parse_response(response)
 
@@ -157,6 +190,12 @@ class WebserviceInterface(object):
             return json.loads(response.text)
 
         raise Exception('WebService unexpected result: HTTP status code={}'.format(response.status_code))
+
+
+def build_system_message_interface(robot_host, robot_user, robot_pass):
+    wsi = WebserviceInterface(robot_host, robot_user, robot_pass)
+    wsa = WebserviceInterfaceAdapter(wsi)
+    return wsa
 
 
 if __name__ == '__main__':
