@@ -82,6 +82,15 @@ class WebserviceInterfaceAdapter(object):
 
         return (), ()
 
+    @arguments_adapter(string_values=['signal_name'], float_values=[])
+    def get_digital_io(self, signal_name):
+        signal = self._locate_digital_io_resource(signal_name)
+        path = '/rw/iosystem/{}'.format(signal['_links']['self']['href'])
+
+        response = self.ws.do_get(path)
+
+        return (), response['_embedded']['_state'][0]['lvalue']
+
     def start(self):
         path = '/rw/rapid/execution/?action=start'
         data = {'regain': 'continue', 'execmode': 'continue', 'cycle': 'asis', 'condition': 'none', 'stopatbp': 'disabled', 'alltaskbytsp': 'false'}
@@ -207,43 +216,53 @@ if __name__ == '__main__':
 
     ws = WebserviceInterface(robot_host, username, password)
     wa = WebserviceInterfaceAdapter(ws)
-    # m = Message('reset_program_pointer', feedback_level=1)
-    # r = wa.execute_instruction(m)
-    # print(r.feedback)
+
+    m = Message('reset_program_pointer', feedback_level=1)
+    r = wa.execute_instruction(m)
+    print(r.feedback)
+
     import time
     # time.sleep(5)
     # m = Message('start', feedback_level=1)
     # r = wa.execute_instruction(m)
+
     m = Message('set_digital_io', feedback_level=1)
-    m.string_values = ['do_PPMain']
+    m.string_values = ['do_1']
     m.float_values = [1]
     r = wa.execute_instruction(m)
     print(r.feedback)
-    time.sleep(.2)
-    m = Message('set_digital_io', feedback_level=1)
-    m.string_values = ['do_PPMain']
-    m.float_values = [0]
+
+    # time.sleep(.2)
+    m = Message('get_digital_io', feedback_level=1)
+    m.string_values = ['do_1']
+    m.float_values = []
     r = wa.execute_instruction(m)
-    print(r.feedback)
+    print(r.float_values)
 
-    time.sleep(2)
+    # m = Message('set_digital_io', feedback_level=1)
+    # m.string_values = ['do_PPMain']
+    # m.float_values = [0]
+    # r = wa.execute_instruction(m)
+    # print(r.feedback)
 
-    m = Message('set_digital_io', feedback_level=1)
-    m.string_values = ['do_Start']
-    m.float_values = [1]
-    r = wa.execute_instruction(m)
-    print(r.feedback)
-    time.sleep(.2)
+    # time.sleep(2)
 
-    m = Message('set_digital_io', feedback_level=1)
-    m.string_values = ['do_Start']
-    m.float_values = [0]
-    r = wa.execute_instruction(m)
-    print(r.feedback)
+    # m = Message('set_digital_io', feedback_level=1)
+    # m.string_values = ['do_Start']
+    # m.float_values = [1]
+    # r = wa.execute_instruction(m)
+    # print(r.feedback)
+    # time.sleep(.2)
 
-    # print('Controller state: ' + ws.get_controller_state())
-    # print('Execution state: ' + ws.get_execution_state())
-    # print('Operation mode: ' + ws.get_operation_mode())
+    # m = Message('set_digital_io', feedback_level=1)
+    # m.string_values = ['do_Start']
+    # m.float_values = [0]
+    # r = wa.execute_instruction(m)
+    # print(r.feedback)
+
+    print('Controller state: ' + wa.get_controller_state())
+    print('Execution state: ' + wa.get_execution_state())
+    print('Operation mode: ' + wa.get_operation_mode())
     # ws.set_digital_io('diA065_E1In1', 1)
     # print('calling...')
     # getattr(ws, 'set_digital_io')(**dict(string_values=['diA065_E1In1'], float_values=[1]))
