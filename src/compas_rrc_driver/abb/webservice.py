@@ -89,7 +89,7 @@ class WebserviceInterfaceAdapter(object):
 
         response = self.ws.do_get(path)
 
-        return (), response['_embedded']['_state'][0]['lvalue']
+        return (), [float(response['_embedded']['_state'][0]['lvalue'])]
 
     def start(self):
         path = '/rw/rapid/execution/?action=start'
