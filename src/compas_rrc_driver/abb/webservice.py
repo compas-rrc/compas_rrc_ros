@@ -38,7 +38,7 @@ class WebserviceInterfaceAdapter(object):
 
 
     def get_controller_state(self):
-        response = self.ws.do_get('/rw/rapid/execution')
+        response = self.ws.do_get('/rw/panel/ctrlstate')
         # TODO: format output as 3-value tuple
         return response['_embedded']['_state'][0]['ctrlexecstate']
 
