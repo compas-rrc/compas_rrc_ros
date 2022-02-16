@@ -41,6 +41,14 @@ class WebserviceInterfaceAdapter(object):
         response = self.ws.do_get('/rw/panel/ctrlstate')
         return (response['_embedded']['_state'][0]['ctrlstate'], ), ()
 
+    def get_speed_ratio(self):
+        response = self.ws.do_get('/rw/panel/speedratio')
+        return (), (float(response['_embedded']['_state'][0]['speedratio']), )
+
+    def get_collision_detect_state(self):
+        response = self.ws.do_get('/rw/panel/coldetstate')
+        return (response['_embedded']['_state'][0]['coldetstate'], ), ()
+
     def get_operation_mode(self):
         response = self.ws.do_get('/rw/panel/opmode')
         return (response['_embedded']['_state'][0]['opmode'], ), ()
@@ -260,6 +268,8 @@ if __name__ == '__main__':
     print('Controller state: {}'.format(wa.get_controller_state()[0][0]))
     print('Execution state: {}'.format(wa.get_execution_state()[0][0]))
     print('Operation mode: {}'.format(wa.get_operation_mode()[0][0]))
+    print('Speed ratio: {}'.format(wa.get_speed_ratio()[1][0]))
+    print('Collision detect state: {}'.format(wa.get_collision_detect_state()[0][0]))
     # ws.set_digital_io('diA065_E1In1', 1)
     # print('calling...')
     # getattr(ws, 'set_digital_io')(**dict(string_values=['diA065_E1In1'], float_values=[1]))
