@@ -39,18 +39,15 @@ class WebserviceInterfaceAdapter(object):
 
     def get_controller_state(self):
         response = self.ws.do_get('/rw/panel/ctrlstate')
-        # TODO: format output as 3-value tuple
-        return response['_embedded']['_state'][0]['ctrlstate']
+        return (response['_embedded']['_state'][0]['ctrlstate'], ), ()
 
     def get_operation_mode(self):
         response = self.ws.do_get('/rw/panel/opmode')
-        # TODO: format output as 3-value tuple
-        return response['_embedded']['_state'][0]['opmode']
+        return (response['_embedded']['_state'][0]['opmode'], ), ()
 
     def get_execution_state(self):
         response = self.ws.do_get('/rw/rapid/execution')
-        # TODO: format output as 3-value tuple
-        return response['_embedded']['_state'][0]['ctrlexecstate']
+        return (response['_embedded']['_state'][0]['ctrlexecstate'], ), ()
 
     def _locate_digital_io_resource(self, signal_name):
         base_path = '/rw/iosystem/'
@@ -260,9 +257,9 @@ if __name__ == '__main__':
     # r = wa.execute_instruction(m)
     # print(r.feedback)
 
-    print('Controller state: ' + wa.get_controller_state())
-    print('Execution state: ' + wa.get_execution_state())
-    print('Operation mode: ' + wa.get_operation_mode())
+    print('Controller state: {}'.format(wa.get_controller_state()[0][0]))
+    print('Execution state: {}'.format(wa.get_execution_state()[0][0]))
+    print('Operation mode: {}'.format(wa.get_operation_mode()[0][0]))
     # ws.set_digital_io('diA065_E1In1', 1)
     # print('calling...')
     # getattr(ws, 'set_digital_io')(**dict(string_values=['diA065_E1In1'], float_values=[1]))
