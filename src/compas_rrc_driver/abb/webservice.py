@@ -73,6 +73,7 @@ class WebserviceInterfaceAdapter(object):
             'json': json.dumps(tasks),
         }
 
+    @arguments_adapter(string_values=['task_name'], float_values=[])
     def get_task_execution_state(self, task_name):
         response = self.ws.do_get('/rw/rapid/tasks/{}/'.format(task_name))
         return {
@@ -172,6 +173,7 @@ class WebserviceInterfaceAdapter(object):
             kwargs['float_values'] = message.float_values
 
         result = None
+        response = {}
 
         if hasattr(self, instruction):
             try:
