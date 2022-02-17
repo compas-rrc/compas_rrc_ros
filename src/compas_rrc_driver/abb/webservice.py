@@ -36,26 +36,48 @@ class WebserviceInterfaceAdapter(object):
     def __init__(self, webservice_interface):
         self.ws = webservice_interface
 
-
     def get_controller_state(self):
         response = self.ws.do_get('/rw/panel/ctrlstate')
-        return (response['_embedded']['_state'][0]['ctrlstate'], ), ()
+        return {
+            'string_values': (response['_embedded']['_state'][0]['ctrlstate'], ),
+        }
 
     def get_speed_ratio(self):
         response = self.ws.do_get('/rw/panel/speedratio')
-        return (), (float(response['_embedded']['_state'][0]['speedratio']), )
+        return {
+            'float_values': (float(response['_embedded']['_state'][0]['speedratio']), )
+        }
 
     def get_collision_detect_state(self):
         response = self.ws.do_get('/rw/panel/coldetstate')
-        return (response['_embedded']['_state'][0]['coldetstate'], ), ()
+        return {
+            'string_values': (response['_embedded']['_state'][0]['coldetstate'], )
+        }
 
     def get_operation_mode(self):
         response = self.ws.do_get('/rw/panel/opmode')
-        return (response['_embedded']['_state'][0]['opmode'], ), ()
+        return {
+            'string_values': (response['_embedded']['_state'][0]['opmode'], )
+        }
 
     def get_execution_state(self):
         response = self.ws.do_get('/rw/rapid/execution')
-        return (response['_embedded']['_state'][0]['ctrlexecstate'], ), ()
+        return {
+            'string_values': (response['_embedded']['_state'][0]['ctrlexecstate'], )
+        }
+
+    def get_tasks(self):
+        response = self.ws.do_get('/rw/rapid/tasks')
+        tasks = [t['name'] for t in response['_embedded']['_state']]
+        return {
+            'json': json.dumps(tasks),
+        }
+
+    def get_task_execution_state(self, task_name):
+        response = self.ws.do_get('/rw/rapid/tasks/{}/'.format(task_name))
+        return {
+            'string_values': (response['_embedded']['_state'][0]['excstate'], )
+        }
 
     def _locate_digital_io_resource(self, signal_name):
         base_path = '/rw/iosystem/'
@@ -85,7 +107,7 @@ class WebserviceInterfaceAdapter(object):
 
         result = self.ws.do_post(path, data)
 
-        return (), ()
+        return {}
 
     @arguments_adapter(string_values=['signal_name'], float_values=[])
     def get_digital_io(self, signal_name):
@@ -94,7 +116,9 @@ class WebserviceInterfaceAdapter(object):
 
         response = self.ws.do_get(path)
 
-        return (), [float(response['_embedded']['_state'][0]['lvalue'])]
+        return {
+            'float_values': (float(response['_embedded']['_state'][0]['lvalue']), )
+        }
 
     def start(self):
         path = '/rw/rapid/execution/?action=start'
@@ -102,7 +126,7 @@ class WebserviceInterfaceAdapter(object):
 
         result = self.ws.do_post(path, data)
 
-        return (), ()
+        return {}
 
     def stop(self):
         path = '/rw/rapid/execution/?action=stop'
@@ -110,14 +134,14 @@ class WebserviceInterfaceAdapter(object):
 
         result = self.ws.do_post(path, data)
 
-        return (), ()
+        return {}
 
     def reset_program_pointer(self):
         path = '/rw/rapid/execution/?action=resetpp'
 
         result = self.ws.do_post(path)
 
-        return (), ()
+        return {}
 
     def custom_instruction(self, message):
         ws_call = json.loads(message.instruction)
@@ -132,7 +156,9 @@ class WebserviceInterfaceAdapter(object):
         else:
             raise Exception('Invalid method name={}'.format(method))
 
-        return json.dumps(result)
+        return {
+            'json': json.dumps(result)
+        }
 
     def execute_instruction(self, message):
         # TODO: Decide what to do with this setting
@@ -146,29 +172,30 @@ class WebserviceInterfaceAdapter(object):
             kwargs['float_values'] = message.float_values
 
         result = None
-        return_strings = []
-        return_floats = []
 
         if hasattr(self, instruction):
             try:
                 fn = getattr(self, instruction)
-                # NOTE: Maybe we need to change this so that both custom and non-custom instructions
-                # return json output in the result/feedback field so that they are more consistent
-                return_strings, return_floats = fn(**kwargs)
+                response = fn(**kwargs)
                 result = FEEDBACK_DONE_STRING
             except Exception:
                 result = FEEDBACK_ERROR_STRING
         else:
             try:
-                result = self.custom_instruction(message)
+                response = self.custom_instruction(message)
                 instruction = 'custom_instruction'
             except json.decoder.JSONDecodeError:
                 raise WebServiceInstructionError('No implemention found for instruction="{}"'.format(instruction))
+
+        return_strings = response.get('string_values', [])
+        return_floats = response.get('float_values', [])
+        result = response.get('json')
 
         if message.feedback_level == 0:
             return
 
         return Message(instruction, feedback_id=message.sequence_id, feedback=result, string_values=return_strings, float_values=return_floats)
+
 
 class WebserviceInterface(object):
     def __init__(self, host, username='Default User', password='robotics'):
@@ -216,7 +243,6 @@ if __name__ == '__main__':
     robot_host = '127.0.0.1'
     username = 'Default User'
     password = 'robotics'
-    from compas_rrc_driver.message import Message
 
 
     ws = WebserviceInterface(robot_host, username, password)
@@ -265,11 +291,14 @@ if __name__ == '__main__':
     # r = wa.execute_instruction(m)
     # print(r.feedback)
 
-    print('Controller state: {}'.format(wa.get_controller_state()[0][0]))
-    print('Execution state: {}'.format(wa.get_execution_state()[0][0]))
-    print('Operation mode: {}'.format(wa.get_operation_mode()[0][0]))
-    print('Speed ratio: {}'.format(wa.get_speed_ratio()[1][0]))
-    print('Collision detect state: {}'.format(wa.get_collision_detect_state()[0][0]))
+    print('Controller state: {}'.format(wa.get_controller_state()['string_values'][0]))
+    print('Execution state: {}'.format(wa.get_execution_state()['string_values'][0]))
+    print('Operation mode: {}'.format(wa.get_operation_mode()['string_values'][0]))
+    print('Speed ratio: {}'.format(wa.get_speed_ratio()['float_values'][0]))
+    print('Collision detect state: {}'.format(wa.get_collision_detect_state()['string_values'][0]))
+    print('Tasks: {}'.format(json.loads(wa.get_tasks()['json'])))
+    print('Task execution state: {}'.format(wa.get_task_execution_state('T_ROB1')['string_values'][0]))
+
     # ws.set_digital_io('diA065_E1In1', 1)
     # print('calling...')
     # getattr(ws, 'set_digital_io')(**dict(string_values=['diA065_E1In1'], float_values=[1]))
