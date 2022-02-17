@@ -1,12 +1,41 @@
-import rospy
 from threading import Lock
+
+import rospy
+
 from compas_rrc_driver import msg
+
 
 class SequenceCheckModes(object):
     NONE = 'none'
     ALL = 'all'
     INCOMING = 'incoming'
     OUTGOING = 'outgoing'
+
+
+class SequenceCounter(object):
+    """An atomic, thread-safe sequence increament counter."""
+    ROLLOVER_THRESHOLD = 1000000
+
+    def __init__(self, start=0):
+        """Initialize a new counter to given initial value."""
+        self._lock = Lock()
+        self._value = start
+
+    def increment(self, num=1):
+        """Atomically increment the counter by ``num`` and
+        return the new value.
+        """
+        with self._lock:
+            self._value += num
+            if self._value > SequenceCounter.ROLLOVER_THRESHOLD:
+                self._value = 1
+            return self._value
+
+    @property
+    def value(self):
+        """Current sequence counter."""
+        with self._lock:
+            return self._value
 
 
 class RobotMessageTopicAdapter(object):
@@ -84,6 +113,7 @@ class RobotMessageTopicAdapter(object):
 class SystemMessageTopicAdapter(object):
     def __init__(self, topic_name_sub, topic_name_pub, system_interface):
         super(SystemMessageTopicAdapter, self).__init__()
+        self.counter = SequenceCounter()
         self.system_interface = system_interface
         # TODO: Verify topic queue sizes
         self.subscriber = rospy.Subscriber(topic_name_sub, msg.RobotMessage, self.ros_to_robot_handler)
@@ -96,6 +126,7 @@ class SystemMessageTopicAdapter(object):
         try:
             response = self.system_interface.execute_instruction(ros_message)
             if response is not None:
+                response.sequence_id = self.counter.increment()
                 self.handle_response(response)
         except Exception as e:
             rospy.logerr(e)
@@ -104,7 +135,8 @@ class SystemMessageTopicAdapter(object):
     def handle_response(self, response):
         """Handle messages from the robot controller to ROS topic."""
         try:
-            self.publisher.publish(response.to_ros_message(msg.RobotMessage))
+            message = response.to_ros_message(msg.RobotMessage)
+            self.publisher.publish(message)
         except Exception as e:
             rospy.logerr(e)
             raise e
