@@ -1,11 +1,15 @@
-import json
 import functools
-import requests
+import json
 
+import requests
+import rospy
+
+from compas_rrc_driver.event_emitter import EventEmitterMixin
 from compas_rrc_driver.message import Message
 
 FEEDBACK_DONE_STRING = 'Done'
 FEEDBACK_ERROR_STRING = 'WSFError'
+
 
 class WebServiceInstructionError(Exception):
     pass
@@ -34,7 +38,16 @@ def arguments_adapter(adapted_func=None, string_values=None, float_values=None):
 
 class WebserviceInterfaceAdapter(object):
     def __init__(self, webservice_interface):
+        super(WebserviceInterfaceAdapter, self).__init__()
         self.ws = webservice_interface
+
+    def on_request(self, callback):
+        """Add event handler that is fired when a request is sent out."""
+        self.ws.on_request(callback)
+
+    def on_response(self, callback):
+        """Add event handler that is fired when a response is received."""
+        self.ws.on_response(callback)
 
     def get_controller_state(self):
         response = self.ws.do_get('/rw/panel/ctrlstate')
@@ -180,8 +193,9 @@ class WebserviceInterfaceAdapter(object):
                 fn = getattr(self, instruction)
                 response = fn(**kwargs)
                 result = FEEDBACK_DONE_STRING
-            except Exception:
-                result = FEEDBACK_ERROR_STRING
+            except Exception as e:
+                rospy.logerr(e)
+                result = '{}: {}'.format(FEEDBACK_ERROR_STRING, e)
         else:
             try:
                 response = self.custom_instruction(message)
@@ -199,22 +213,32 @@ class WebserviceInterfaceAdapter(object):
         return Message(instruction, feedback_id=message.sequence_id, feedback=result, string_values=return_strings, float_values=return_floats)
 
 
-class WebserviceInterface(object):
+class WebserviceInterface(EventEmitterMixin):
     def __init__(self, host, username='Default User', password='robotics'):
+        super(WebserviceInterface, self).__init__()
         # TODO: Detect webservice version
         self.host = 'http://{}'.format(host)
         self.auth = requests.auth.HTTPDigestAuth(username, password)
         self.session = requests.Session()
 
+    def on_request(self, callback):
+        self.on('request', callback)
+
+    def on_response(self, callback):
+        self.on('response', callback)
+
     def do_get(self, path):
         url = self._build_url(path)
-        print('Starting request to:' + url)
+        self.emit('request', 'GET', url)
         response = self.session.get(url, auth=self.auth)
+        self.emit('response', response)
         return self._parse_response(response)
 
     def do_post(self, path, data=None):
         url = self._build_url(path)
+        self.emit('request', 'POST', url)
         response = self.session.post(url, data=data, auth=self.auth)
+        self.emit('response', response)
         return self._parse_response(response)
 
     def _build_url(self, path):
@@ -255,6 +279,7 @@ if __name__ == '__main__':
     print(r.feedback)
 
     import time
+
     # time.sleep(5)
     # m = Message('start', feedback_level=1)
     # r = wa.execute_instruction(m)

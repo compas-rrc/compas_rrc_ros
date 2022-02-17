@@ -459,9 +459,17 @@ def main():
             rospy.logdebug('Sent: "%s", content: %s', message.instruction, str(message).replace('\n', '; '))
             rospy.loginfo('Sent message with length=%d, instruction=%s, sequence id=%d', len(wire_message), message.instruction, message.sequence_id)
 
+        def system_message_sent_log(request_method, url):
+            rospy.logdebug('Sent WebService request. Method={}, URL={}'.format(request_method, url))
+
+        def system_message_received_log(response):
+            rospy.logdebug('Received WebService response. Status Code={}, URL={}'.format(response.status_code, response.url))
+
         streaming_interface.on_message_sent(message_sent_log)
         if DEBUG:
             robot_state.on_message(message_received_log)
+            system_interface.on_request(system_message_sent_log)
+            system_interface.on_response(system_message_received_log)
 
         options = dict(sequence_check_mode=sequence_check_mode)
         topic_adapter = RobotMessageTopicAdapter('robot_command', 'robot_response', streaming_interface, robot_state, options=options)
