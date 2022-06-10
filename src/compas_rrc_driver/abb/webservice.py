@@ -1,8 +1,10 @@
 import functools
 import json
-
+from xml.etree import ElementTree as ET
 import requests
-import rospy
+import websocket
+# import rospy
+import threading
 
 from compas_rrc_driver.event_emitter import EventEmitterMixin
 from compas_rrc_driver.message import Message
@@ -194,7 +196,7 @@ class WebserviceInterfaceAdapter(object):
                 response = fn(**kwargs)
                 result = FEEDBACK_DONE_STRING
             except Exception as e:
-                rospy.logerr(e)
+                # rospy.logerr(e)
                 result = '{}: {}'.format(FEEDBACK_ERROR_STRING, e)
         else:
             try:
@@ -212,6 +214,12 @@ class WebserviceInterfaceAdapter(object):
 
         return Message(instruction, feedback_id=message.sequence_id, feedback=result, string_values=return_strings, float_values=return_floats)
 
+    def subscribe_controller_state(self, callback):
+        data = {'resources': ['1'],
+                '1': '/rw/panel/ctrlstate',
+                '1-p': '1'  # priority 0=low, 1=medium, 2=high
+            }
+        self.ws.subscribe(data, callback)
 
 class WebserviceInterface(EventEmitterMixin):
     def __init__(self, host, username='Default User', password='robotics'):
@@ -221,6 +229,42 @@ class WebserviceInterface(EventEmitterMixin):
         self.auth = requests.auth.HTTPDigestAuth(username, password)
         self.session = requests.Session()
 
+    def subscribe(self, data, callback):
+        # Subscription webservice does not support JSON
+        path = '/subscription'
+        url = self.host + path
+        response = self.session.post(url, data=data, auth=self.auth)
+        doc = self._parse_response(response, 'xml')
+
+        # Extract subscription data from XML doc
+        query = self._get_xpath('.//{}a[@rel="self"]')
+        item = doc.find(query)  # there's more than one, but the first one is the correct one
+        ws_url = item.attrib['href']
+
+        cookie = 'ABBCX={}'.format(self.session.cookies['ABBCX'])
+        header = {'Cookie': cookie, 'Authorization': self.auth.build_digest_header('GET', ws_url)}
+        # ws = websocket.WebSocketApp(ws_url, subprotocols=['robapi2_subscription'], header=header, on_message=callback)
+        # ws.run_forever()
+
+        ws = websocket.WebSocket()
+        ws.connect(ws_url, subprotocols=['robapi2_subscription'], header=header)
+        ws.ping()
+        print('Pinged')
+        thread = threading.Thread(target=self.subscription_loop, args=(ws, callback, ), daemon=True)
+        thread.start()
+
+    def subscription_loop(self, ws, callback):
+        print('Starting recv loop')
+        while True:
+            data = ws.recv()
+            print(data)
+            callback(data)
+
+    def _get_xpath(self, query, namespace='{http://www.w3.org/1999/xhtml}'):
+        if namespace:
+            query = query.format(namespace)
+        return query
+
     def on_request(self, callback):
         self.on('request', callback)
 
@@ -228,18 +272,26 @@ class WebserviceInterface(EventEmitterMixin):
         self.on('response', callback)
 
     def do_get(self, path):
-        url = self._build_url(path)
-        self.emit('request', 'GET', url)
-        response = self.session.get(url, auth=self.auth)
-        self.emit('response', response)
-        return self._parse_response(response)
+        try:
+            url = self._build_url(path)
+            self.emit('request', 'GET', url)
+            response = self.session.get(url, auth=self.auth)
+            self.emit('response', response)
+            return self._parse_response(response)
+        finally:
+            if response:
+                response.close()
 
     def do_post(self, path, data=None):
-        url = self._build_url(path)
-        self.emit('request', 'POST', url)
-        response = self.session.post(url, data=data, auth=self.auth)
-        self.emit('response', response)
-        return self._parse_response(response)
+        try:
+            url = self._build_url(path)
+            self.emit('request', 'POST', url)
+            response = self.session.post(url, data=data, auth=self.auth)
+            self.emit('response', response)
+            return self._parse_response(response)
+        finally:
+            if response:
+                response.close()
 
     def _build_url(self, path):
         url = self.host + path
@@ -247,14 +299,20 @@ class WebserviceInterface(EventEmitterMixin):
             url += '?json=1' if '?' not in url else '&json=1'
         return url
 
-    def _parse_response(self, response):
+    def _parse_response(self, response, format='json'):
         if response.status_code == 500:
             raise Exception('WebService returned an internal error code')
 
         if response.status_code >= 200 and response.status_code < 300:
-            if len(response.text.strip()) == 0:
-                return {}
-            return json.loads(response.text)
+            if format == 'json':
+                if len(response.text.strip()) == 0:
+                    return {}
+
+                return json.loads(response.text)
+            elif format == 'xml':
+                return ET.fromstring(response.text)
+
+            return response.text
 
         raise Exception('WebService unexpected result: HTTP status code={}'.format(response.status_code))
 
@@ -274,9 +332,9 @@ if __name__ == '__main__':
     ws = WebserviceInterface(robot_host, username, password)
     wa = WebserviceInterfaceAdapter(ws)
 
-    m = Message('reset_program_pointer', feedback_level=1)
-    r = wa.execute_instruction(m)
-    print(r.feedback)
+    # m = Message('reset_program_pointer', feedback_level=1)
+    # r = wa.execute_instruction(m)
+    # print(r.feedback)
 
     import time
 
@@ -284,18 +342,18 @@ if __name__ == '__main__':
     # m = Message('start', feedback_level=1)
     # r = wa.execute_instruction(m)
 
-    m = Message('set_digital_io', feedback_level=1)
-    m.string_values = ['do_1']
-    m.float_values = [1]
-    r = wa.execute_instruction(m)
-    print(r.feedback)
+    # m = Message('set_digital_io', feedback_level=1)
+    # m.string_values = ['do_1']
+    # m.float_values = [1]
+    # r = wa.execute_instruction(m)
+    # print(r.feedback)
 
-    # time.sleep(.2)
-    m = Message('get_digital_io', feedback_level=1)
-    m.string_values = ['do_1']
-    m.float_values = []
-    r = wa.execute_instruction(m)
-    print(r.float_values)
+    # # time.sleep(.2)
+    # m = Message('get_digital_io', feedback_level=1)
+    # m.string_values = ['do_1']
+    # m.float_values = []
+    # r = wa.execute_instruction(m)
+    # print(r.float_values)
 
     # m = Message('set_digital_io', feedback_level=1)
     # m.string_values = ['do_PPMain']
@@ -318,16 +376,25 @@ if __name__ == '__main__':
     # r = wa.execute_instruction(m)
     # print(r.feedback)
 
-    print('Controller state: {}'.format(wa.get_controller_state()['string_values'][0]))
-    print('Execution state: {}'.format(wa.get_execution_state()['string_values'][0]))
-    print('Operation mode: {}'.format(wa.get_operation_mode()['string_values'][0]))
-    print('Speed ratio: {}'.format(wa.get_speed_ratio()['float_values'][0]))
-    print('Collision detect state: {}'.format(wa.get_collision_detect_state()['string_values'][0]))
-    print('Tasks: {}'.format(json.loads(wa.get_tasks()['json'])))
-    print('Task execution state: {}'.format(wa.get_task_execution_state('T_ROB1')['string_values'][0]))
+    # print('Controller state: {}'.format(wa.get_controller_state()['string_values'][0]))
+    # print('Execution state: {}'.format(wa.get_execution_state()['string_values'][0]))
+    # print('Operation mode: {}'.format(wa.get_operation_mode()['string_values'][0]))
+    # print('Speed ratio: {}'.format(wa.get_speed_ratio()['float_values'][0]))
+    # print('Collision detect state: {}'.format(wa.get_collision_detect_state()['string_values'][0]))
+    # print('Tasks: {}'.format(json.loads(wa.get_tasks()['json'])))
+    # print('Task execution state: {}'.format(wa.get_task_execution_state('T_ROB1')['string_values'][0]))
 
     # ws.set_digital_io('diA065_E1In1', 1)
     # print('calling...')
     # getattr(ws, 'set_digital_io')(**dict(string_values=['diA065_E1In1'], float_values=[1]))
     # print('calling again')
     # ws.set_digital_io('diA065_E1In1', 1)
+
+    def on_message(msg):
+        print(msg)
+    print(wa.get_controller_state())
+
+    wa.subscribe_controller_state(on_message)
+    print('here')
+    while True:
+        time.sleep(0.5)
