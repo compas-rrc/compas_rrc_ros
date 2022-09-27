@@ -95,7 +95,7 @@ class WebserviceInterfaceAdapter(object):
             'string_values': (response['_embedded']['_state'][0]['excstate'], )
         }
 
-    def _locate_digital_io_resource(self, signal_name):
+    def _locate_signal_resource(self, signal_name):
         base_path = '/rw/iosystem/'
         page_path = 'signals'
 
@@ -115,10 +115,19 @@ class WebserviceInterfaceAdapter(object):
         return None
 
     @arguments_adapter(string_values=['signal_name'], float_values=['value'])
-    def set_digital_io(self, signal_name, value):
-        signal = self._locate_digital_io_resource(signal_name)
+    def set_signal(self, signal_name, value):
+        signal = self._locate_signal_resource(signal_name)
         path = '/rw/iosystem/{}&action=set'.format(signal['_links']['self']['href'])
-        value = '1' if bool(value) else '0'
+
+        if signal['type'] == 'DO':
+            value = '1' if bool(value) else '0'
+        elif signal['type'] == 'AO':
+            value = float(value)
+        elif signal['type'] == 'GO':
+            value = int(value)
+        else:
+            raise Exception('Unexpected signal type. Received={}'.format(signal['type']))
+
         data = {'lvalue': value}
 
         result = self.ws.do_post(path, data)
@@ -126,8 +135,8 @@ class WebserviceInterfaceAdapter(object):
         return {}
 
     @arguments_adapter(string_values=['signal_name'], float_values=[])
-    def get_digital_io(self, signal_name):
-        signal = self._locate_digital_io_resource(signal_name)
+    def get_signal(self, signal_name):
+        signal = self._locate_signal_resource(signal_name)
         path = '/rw/iosystem/{}'.format(signal['_links']['self']['href'])
 
         response = self.ws.do_get(path)
