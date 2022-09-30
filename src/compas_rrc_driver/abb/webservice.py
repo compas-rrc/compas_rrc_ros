@@ -145,6 +145,54 @@ class WebserviceInterfaceAdapter(object):
             'float_values': (float(response['_embedded']['_state'][0]['lvalue']), )
         }
 
+    @arguments_adapter(string_values=['variable_name', 'task_name'], float_values=[])
+    def get_rapid_variable(self, variable_name, task_name):
+        path = '/rw/rapid/symbol/data/RAPID/{}/{}'.format(task_name, variable_name)
+
+        response = self.ws.do_get(path)
+        variable_value = json.loads(response['_embedded']['_state'][0]['value'])
+
+        if isinstance(variable_value, str):
+            return {'string_values': (variable_value, )}
+        else:
+            return {'float_values': (variable_value, )}
+
+    @arguments_adapter(string_values=['variable_name', 'variable_value', 'task_name'], float_values=[])
+    def set_rapid_variable(self, variable_name, variable_value, task_name):
+        path = '/users/rmmp'
+        response = self.ws.do_get(path)
+        privilege = response['_embedded']['_state'][0]['privilege']
+        print('privilege', privilege)
+        import time
+        # request write access
+        if privilege == 'none':
+            path = '/users/rmmp'
+            data = {'privilege': 'modify'}
+            response = self.ws.do_post(path, data)
+            print(response)
+
+            t1 = time.time()
+            while time.time() - t1 < 10:
+                path = '/users/rmmp/poll'
+                response = self.ws.do_get(path)
+                status = response['_embedded']['_state'][0]['status']
+                if status == "GRANTED":
+                    print('granted')
+                    break
+                print('status', status)
+                time.sleep(0.25)
+        time.sleep(5)
+        print('requesting change')
+        path = '/rw/rapid/symbol/data/RAPID/{}/{}?action=set'.format(task_name, variable_name)
+        data = {'value': variable_value}
+        try:
+            response = self.ws.do_post(path, data)
+            print (response)
+        except Exception as e:
+            print('Error', e)
+        time.sleep(5)
+        return {}
+
     def start(self):
         path = '/rw/rapid/execution/?action=start'
         data = {'regain': 'continue', 'execmode': 'continue', 'cycle': 'asis', 'condition': 'none', 'stopatbp': 'disabled', 'alltaskbytsp': 'false'}
@@ -216,7 +264,7 @@ class WebserviceInterfaceAdapter(object):
 
         return_strings = response.get('string_values', [])
         return_floats = response.get('float_values', [])
-        result = response.get('json')
+        result = response.get('json') or result
 
         if message.feedback_level == 0:
             return
@@ -333,7 +381,7 @@ def build_system_message_interface(robot_host, robot_user, robot_pass):
 
 
 if __name__ == '__main__':
-    robot_host = '127.0.0.1'
+    robot_host = '192.168.125.1'
     username = 'Default User'
     password = 'robotics'
 
@@ -351,14 +399,33 @@ if __name__ == '__main__':
     # m = Message('start', feedback_level=1)
     # r = wa.execute_instruction(m)
 
-    # m = Message('set_digital_io', feedback_level=1)
+    m = Message('get_rapid_variable', feedback_level=1)
+    m.string_values = ['st_RRC_test_variable', 'T_ROB1']
+    m.float_values = []
+    r = wa.execute_instruction(m)
+    print(r.string_values)
+
+    m = Message('set_rapid_variable', feedback_level=1)
+    m.string_values = ['st_RRC_test_variable', json.dumps("Hello World"), 'T_ROB1']
+    m.float_values = []
+    r = wa.execute_instruction(m)
+    print('Feedback', r.feedback)
+    print(r)
+
+    m = Message('get_rapid_variable', feedback_level=1)
+    m.string_values = ['st_RRC_test_variable', 'T_ROB1']
+    m.float_values = []
+    r = wa.execute_instruction(m)
+    print(r.string_values)
+
+    # m = Message('set_signal', feedback_level=1)
     # m.string_values = ['do_1']
     # m.float_values = [1]
     # r = wa.execute_instruction(m)
     # print(r.feedback)
 
     # # time.sleep(.2)
-    # m = Message('get_digital_io', feedback_level=1)
+    # m = Message('get_signal', feedback_level=1)
     # m.string_values = ['do_1']
     # m.float_values = []
     # r = wa.execute_instruction(m)
@@ -399,11 +466,11 @@ if __name__ == '__main__':
     # print('calling again')
     # ws.set_digital_io('diA065_E1In1', 1)
 
-    def on_message(msg):
-        print(msg)
-    print(wa.get_controller_state())
+    # def on_message(msg):
+    #     print(msg)
+    # print(wa.get_controller_state())
 
-    wa.subscribe_controller_state(on_message)
-    print('here')
-    while True:
-        time.sleep(0.5)
+    # wa.subscribe_controller_state(on_message)
+    # print('here')
+    # while True:
+    #     time.sleep(0.5)
