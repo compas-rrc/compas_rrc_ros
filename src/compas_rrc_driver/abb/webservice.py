@@ -1,10 +1,11 @@
 import functools
 import json
+import threading
+import time
 from xml.etree import ElementTree as ET
+
 import requests
 import websocket
-# import rospy
-import threading
 
 from compas_rrc_driver.event_emitter import EventEmitterMixin
 from compas_rrc_driver.message import Message
@@ -157,40 +158,42 @@ class WebserviceInterfaceAdapter(object):
         else:
             return {'float_values': (variable_value, )}
 
+    def ensure_write_access(self):
+        result = self.get_operation_mode()
+        operation_mode = result['string_values'][0] if len(result['string_values']) else ''
+
+        if operation_mode != 'AUTO':
+            # Request RMMP session
+            path = '/users/rmmp'
+            response = self.ws.do_get(path)
+            privilege = response['_embedded']['_state'][0]['privilege']
+
+            # request write access
+            if privilege == 'none':
+                print('requesting')
+                path = '/users/rmmp'
+                data = {'privilege': 'modify'}
+                response = self.ws.do_post(path, data)
+                print(response)
+
+                t1 = time.time()
+                while time.time() - t1 < 10:
+                    path = '/users/rmmp/poll'
+                    response = self.ws.do_get(path)
+                    status = response['_embedded']['_state'][0]['status']
+                    print("status", status)
+                    if status == "GRANTED":
+                        break
+                    time.sleep(0.25)
+
     @arguments_adapter(string_values=['variable_name', 'variable_value', 'task_name'], float_values=[])
     def set_rapid_variable(self, variable_name, variable_value, task_name):
-        path = '/users/rmmp'
-        response = self.ws.do_get(path)
-        privilege = response['_embedded']['_state'][0]['privilege']
-        print('privilege', privilege)
-        import time
-        # request write access
-        if privilege == 'none':
-            path = '/users/rmmp'
-            data = {'privilege': 'modify'}
-            response = self.ws.do_post(path, data)
-            print(response)
+        self.ensure_write_access()
 
-            t1 = time.time()
-            while time.time() - t1 < 10:
-                path = '/users/rmmp/poll'
-                response = self.ws.do_get(path)
-                status = response['_embedded']['_state'][0]['status']
-                if status == "GRANTED":
-                    print('granted')
-                    break
-                print('status', status)
-                time.sleep(0.25)
-        time.sleep(5)
-        print('requesting change')
         path = '/rw/rapid/symbol/data/RAPID/{}/{}?action=set'.format(task_name, variable_name)
         data = {'value': variable_value}
-        try:
-            response = self.ws.do_post(path, data)
-            print (response)
-        except Exception as e:
-            print('Error', e)
-        time.sleep(5)
+        response = self.ws.do_post(path, data)
+
         return {}
 
     def start(self):
@@ -217,12 +220,16 @@ class WebserviceInterfaceAdapter(object):
         return {}
 
     def custom_instruction(self, message):
+        print('Executing custom instruction')
         ws_call = json.loads(message.instruction)
+        print('ws_call', ws_call)
         path = ws_call['path']
         method = ws_call.get('method', 'GET')
 
         if method == 'GET':
+            print(path)
             result = self.ws.do_get(path)
+            print('result', result)
         elif method == 'POST':
             data = ws_call.get('data')
             result = self.ws.do_post(path, data)
@@ -253,8 +260,8 @@ class WebserviceInterfaceAdapter(object):
                 response = fn(**kwargs)
                 result = FEEDBACK_DONE_STRING
             except Exception as e:
-                # rospy.logerr(e)
                 result = '{}: {}'.format(FEEDBACK_ERROR_STRING, e)
+                raise
         else:
             try:
                 response = self.custom_instruction(message)
@@ -381,7 +388,7 @@ def build_system_message_interface(robot_host, robot_user, robot_pass):
 
 
 if __name__ == '__main__':
-    robot_host = '192.168.125.1'
+    robot_host = '127.0.0.1'
     username = 'Default User'
     password = 'robotics'
 
@@ -399,24 +406,31 @@ if __name__ == '__main__':
     # m = Message('start', feedback_level=1)
     # r = wa.execute_instruction(m)
 
-    m = Message('get_rapid_variable', feedback_level=1)
-    m.string_values = ['st_RRC_test_variable', 'T_ROB1']
+    m = Message(json.dumps(dict(path="/rw/motionsystem/mechunits/ROB_1/jointtarget")), feedback_level=1)
+    m.string_values = []
     m.float_values = []
     r = wa.execute_instruction(m)
-    print(r.string_values)
-
-    m = Message('set_rapid_variable', feedback_level=1)
-    m.string_values = ['st_RRC_test_variable', json.dumps("Hello World"), 'T_ROB1']
-    m.float_values = []
-    r = wa.execute_instruction(m)
-    print('Feedback', r.feedback)
     print(r)
-
-    m = Message('get_rapid_variable', feedback_level=1)
-    m.string_values = ['st_RRC_test_variable', 'T_ROB1']
-    m.float_values = []
-    r = wa.execute_instruction(m)
     print(r.string_values)
+
+    # m = Message('get_rapid_variable', feedback_level=1)
+    # m.string_values = ['st_RRC_test_variable', 'T_ROB1']
+    # m.float_values = []
+    # r = wa.execute_instruction(m)
+    # print(r.string_values)
+
+    # m = Message('set_rapid_variable', feedback_level=1)
+    # m.string_values = ['st_RRC_test_variable', json.dumps("asdasd "), 'T_ROB1']
+    # m.float_values = []
+    # r = wa.execute_instruction(m)
+    # print('Feedback', r.feedback)
+    # print(r)
+
+    # m = Message('get_rapid_variable', feedback_level=1)
+    # m.string_values = ['st_RRC_test_variable', 'T_ROB1']
+    # m.float_values = []
+    # r = wa.execute_instruction(m)
+    # print(r.string_values)
 
     # m = Message('set_signal', feedback_level=1)
     # m.string_values = ['do_1']
