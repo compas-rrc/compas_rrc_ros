@@ -1,0 +1,12 @@
+{
+    "_links": {
+        "self": {
+            "href": "signals/do_X?json=1"
+        }
+    },
+    "_type": "ios-signal-li",
+    "_title": "do_X",
+    "name": "do_X",
+    "type": "DO",
+    "category": ", "lvalue": 1, "lstate": "not simulated"
+}
