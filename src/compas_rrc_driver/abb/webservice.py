@@ -163,7 +163,7 @@ class WebserviceInterfaceAdapter(object):
         operation_mode = result['string_values'][0] if len(result['string_values']) else ''
 
         if operation_mode != 'AUTO':
-            # Request RMMP session
+            # Request Manual Mode Privileges (RMMP) session
             path = '/users/rmmp'
             response = self.ws.do_get(path)
             privilege = response['_embedded']['_state'][0]['privilege']
