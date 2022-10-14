@@ -336,6 +336,7 @@ class WebserviceInterface(EventEmitterMixin):
         self.on('response', callback)
 
     def do_get(self, path):
+        response = None
         try:
             url = self._build_url(path)
             self.emit('request', 'GET', url)
@@ -347,6 +348,7 @@ class WebserviceInterface(EventEmitterMixin):
                 response.close()
 
     def do_post(self, path, data=None):
+        response = None
         try:
             url = self._build_url(path)
             self.emit('request', 'POST', url)
