@@ -392,10 +392,93 @@ class StreamingInterfaceConnection(EventEmitterMixin):
         rospy.loginfo('Streaming interface: Worker stopped')
 
 
+def message_received_log(message):
+    rospy.logdebug('Received: "%s", content: %s', message.feedback, str(message).replace('\n', '; '))
+    rospy.loginfo('Received message: feedback=%s, sequence_id=%d, feedback_id=%d', message.feedback, message.sequence_id, message.feedback_id)
+
+
+def message_sent_log(message, wire_message):
+    rospy.logdebug('Sent: "%s", content: %s', message.instruction, str(message).replace('\n', '; '))
+    rospy.loginfo('Sent message with length=%d, instruction=%s, sequence id=%d', len(wire_message), message.instruction, message.sequence_id)
+
+
+def system_message_sent_log(request_method, url):
+    rospy.logdebug('Sent WebService request. Method={}, URL={}'.format(request_method, url))
+
+
+def system_message_received_log(response):
+    rospy.logdebug('Received WebService response. Status Code={}, URL={}'.format(response.status_code, response.url))
+
+
+def connect_sys_interface(robot_host, debug):
+    disable_sys_interface = rospy.get_param('disable_sys_interface', False)
+    if disable_sys_interface:
+        return []
+
+    ROBOT_TYPE_DEFAULT = 'ABB'
+    robot_type = rospy.get_param('robot_type', ROBOT_TYPE_DEFAULT)
+
+    rospy.loginfo('Connecting system message interface %s', robot_host)
+    # TODO: change this to plugins
+    if robot_type not in SYSTEM_MESSAGE_INTERFACE_FACTORIES:
+        raise Exception('Robot type {} has no supported system message interface'.format(robot_type))
+
+    prefix = rospy.get_namespace().replace('/', '').upper()
+    robot_user_key = prefix + '_ROBOT_USER'
+    robot_pass_key = prefix + '_ROBOT_PASS'
+
+    if robot_user_key not in os.environ or robot_pass_key not in os.environ:
+        raise Exception('User and/or password for the system message interface are not defined in the environment variables. Please configure "{}" and "{}" with the appropriate credentials.'.format(robot_user_key, robot_pass_key))
+
+    build_system_message_interface = SYSTEM_MESSAGE_INTERFACE_FACTORIES[robot_type]
+
+    robot_user = os.environ[robot_user_key]
+    robot_pass = os.environ[robot_pass_key]
+
+    system_interface = build_system_message_interface(robot_host, robot_user, robot_pass)
+    system_topic_adapter = SystemMessageTopicAdapter('robot_command_system', 'robot_response_system', system_interface)
+
+    if debug:
+        rospy.loginfo('Attaching debug log handlers')
+        system_interface.on_request(system_message_sent_log)
+        system_interface.on_response(system_message_received_log)
+
+    return [system_topic_adapter]
+
+
+def connect_app_interface(robot_host, debug):
+    disable_app_interface = rospy.get_param('disable_app_interface', False)
+    if disable_app_interface:
+        return []
+
+    robot_streaming_port = rospy.get_param('robot_streaming_port')
+    robot_state_port = rospy.get_param('robot_state_port')
+    sequence_check_mode = rospy.get_param('sequence_check_mode')
+
+    rospy.loginfo('Connecting robot %s (ports %d & %d, sequence check mode=%s)', robot_host, robot_streaming_port, robot_state_port, sequence_check_mode)
+    streaming_interface = StreamingInterfaceConnection(robot_host, robot_streaming_port)
+    streaming_interface.connect()
+
+    robot_state = RobotStateConnection(robot_host, robot_state_port)
+    robot_state.connect()
+
+    # If a disconnect is detected on the robot state socket, it will try to reconnect
+    # So we notify the streaming interface to do the same
+    robot_state.on_socket_broken(streaming_interface.reconnect)
+
+    streaming_interface.on_message_sent(message_sent_log)
+    if debug:
+        robot_state.on_message(message_received_log)
+
+    options = dict(sequence_check_mode=sequence_check_mode)
+    topic_adapter = RobotMessageTopicAdapter('robot_command', 'robot_response', streaming_interface, robot_state, options=options)
+
+    return [robot_state, streaming_interface, topic_adapter]
+
+
 def main():
     DEBUG = True
     ROBOT_HOST_DEFAULT = '127.0.0.1'
-    ROBOT_TYPE_DEFAULT = 'ABB'
 
     LOGGER.setLevel(logging.DEBUG if DEBUG else logging.INFO)
 
@@ -408,89 +491,23 @@ def main():
     log_level = rospy.DEBUG if DEBUG else rospy.INFO
     rospy.init_node('compas_rrc_driver', log_level=log_level)
 
-    robot_host = rospy.get_param('robot_ip_address', ROBOT_HOST_DEFAULT)
-    robot_streaming_port = rospy.get_param('robot_streaming_port')
-    robot_state_port = rospy.get_param('robot_state_port')
-    sequence_check_mode = rospy.get_param('sequence_check_mode')
-
-    # system interface params
-    robot_type = rospy.get_param('robot_type', ROBOT_TYPE_DEFAULT)
-
     # Set protocol version in a parameter to enable version checks from the client side
     rospy.set_param('protocol_version', WireProtocol.VERSION)
 
-    streaming_interface = None
-    robot_state = None
-    topic_adapter = None
-    system_interface = None
-    system_topic_adapter = None
+    # Get general parameters
+    robot_host = rospy.get_param('robot_ip_address', ROBOT_HOST_DEFAULT)
+
+    connected_interfaces = []
 
     try:
-        rospy.loginfo('Connecting system message interface %s', robot_host)
-        # TODO: change this to plugins
-        if robot_type not in SYSTEM_MESSAGE_INTERFACE_FACTORIES:
-            raise Exception('Robot type {} has no supported system message interface'.format(robot_type))
-
-        build_system_message_interface = SYSTEM_MESSAGE_INTERFACE_FACTORIES[robot_type]
-
-        prefix = rospy.get_namespace().replace('/', '').upper()
-        robot_user = os.environ[prefix + '_ROBOT_USER']
-        robot_pass = os.environ[prefix + '_ROBOT_PASS']
-
-        system_interface = build_system_message_interface(robot_host, robot_user, robot_pass)
-        system_topic_adapter = SystemMessageTopicAdapter('robot_command_system', 'robot_response_system', system_interface)
-
-        rospy.loginfo('Connecting robot %s (ports %d & %d, sequence check mode=%s)', robot_host, robot_streaming_port, robot_state_port, sequence_check_mode)
-        streaming_interface = StreamingInterfaceConnection(robot_host, robot_streaming_port)
-        streaming_interface.connect()
-
-        robot_state = RobotStateConnection(robot_host, robot_state_port)
-        robot_state.connect()
-
-        # If a disconnect is detected on the robot state socket, it will try to reconnect
-        # So we notify the streaming interface to do the same
-        robot_state.on_socket_broken(streaming_interface.reconnect)
-
-        def message_received_log(message):
-            rospy.logdebug('Received: "%s", content: %s', message.feedback, str(message).replace('\n', '; '))
-            rospy.loginfo('Received message: feedback=%s, sequence_id=%d, feedback_id=%d', message.feedback, message.sequence_id, message.feedback_id)
-
-        def message_sent_log(message, wire_message):
-            rospy.logdebug('Sent: "%s", content: %s', message.instruction, str(message).replace('\n', '; '))
-            rospy.loginfo('Sent message with length=%d, instruction=%s, sequence id=%d', len(wire_message), message.instruction, message.sequence_id)
-
-        def system_message_sent_log(request_method, url):
-            rospy.logdebug('Sent WebService request. Method={}, URL={}'.format(request_method, url))
-
-        def system_message_received_log(response):
-            rospy.logdebug('Received WebService response. Status Code={}, URL={}'.format(response.status_code, response.url))
-
-        streaming_interface.on_message_sent(message_sent_log)
-        if DEBUG:
-            robot_state.on_message(message_received_log)
-            system_interface.on_request(system_message_sent_log)
-            system_interface.on_response(system_message_received_log)
-
-        options = dict(sequence_check_mode=sequence_check_mode)
-        topic_adapter = RobotMessageTopicAdapter('robot_command', 'robot_response', streaming_interface, robot_state, options=options)
+        connected_interfaces.extend(connect_sys_interface(robot_host, DEBUG))
+        connected_interfaces.extend(connect_app_interface(robot_host, DEBUG))
 
         rospy.spin()
     finally:
-        if topic_adapter:
-            rospy.loginfo('Disconnecting topic adapter...')
-            topic_adapter.disconnect()
-
-        if system_topic_adapter:
-            rospy.loginfo('Disconnecting system topic adapter...')
-            system_topic_adapter.disconnect()
-
-        if streaming_interface:
-            rospy.loginfo('Disconnecting streaming interface...')
-            streaming_interface.disconnect()
-
-        if robot_state:
-            rospy.loginfo('Disconnecting robot state...')
-            robot_state.disconnect()
+        rospy.loginfo('Disconnecting interfaces and adapters...')
+        for interface in connected_interfaces:
+            interface.disconnect()
 
     rospy.loginfo('Terminated')
 
