@@ -282,8 +282,10 @@ class WebserviceInterfaceAdapter(object):
         self.ws.subscribe(data, callback)
 
 class WebserviceInterface(EventEmitterMixin):
-    def __init__(self, host, username='Default User', password='robotics'):
+    def __init__(self, host, username=None, password=None):
         super(WebserviceInterface, self).__init__()
+        username = username or "Default User"
+        password = password or "robotics"
         # TODO: Detect webservice version
         self.host = 'http://{}'.format(host)
         self.auth = requests.auth.HTTPDigestAuth(username, password)
