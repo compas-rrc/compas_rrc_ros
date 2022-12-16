@@ -147,16 +147,12 @@ class WebserviceInterfaceAdapter(object):
         }
 
     @arguments_adapter(string_values=['variable_name', 'task_name'], float_values=[])
-    def get_rapid_variable(self, variable_name, task_name):
+    def get_variable(self, variable_name, task_name):
         path = '/rw/rapid/symbol/data/RAPID/{}/{}'.format(task_name, variable_name)
 
         response = self.ws.do_get(path)
-        variable_value = json.loads(response['_embedded']['_state'][0]['value'])
-
-        if isinstance(variable_value, str):
+        variable_value = response['_embedded']['_state'][0]['value']
             return {'string_values': (variable_value, )}
-        else:
-            return {'float_values': (variable_value, )}
 
     def ensure_write_access(self):
         result = self.get_operation_mode()
@@ -187,7 +183,7 @@ class WebserviceInterfaceAdapter(object):
                     time.sleep(0.25)
 
     @arguments_adapter(string_values=['variable_name', 'variable_value', 'task_name'], float_values=[])
-    def set_rapid_variable(self, variable_name, variable_value, task_name):
+    def set_variable(self, variable_name, variable_value, task_name):
         self.ensure_write_access()
 
         path = '/rw/rapid/symbol/data/RAPID/{}/{}?action=set'.format(task_name, variable_name)
