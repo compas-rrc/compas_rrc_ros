@@ -11,18 +11,28 @@ from compas_rrc_driver.event_emitter import EventEmitterMixin
 from compas_rrc_driver.message import Message
 
 FEEDBACK_DONE_STRING = "Done"
-FEEDBACK_ERROR_STRING = "WSFError"
+FEEDBACK_ERROR_STRING = "Done FError [WS]"  # the start string needs to match "Done FError"
 
 
-class WebServiceInstructionError(Exception):
-    """Exception indicating the web service instruction does not exist."""
+class WebServiceError(Exception):
+    """Exception at the web service interface."""
+
     pass
 
 
-class WebServiceRequestError(WebServiceInstructionError):
+class WebServiceInstructionError(WebServiceError):
+    """Exception indicating the web service instruction does not exist."""
+
+    pass
+
+
+class WebServiceRequestError(WebServiceError):
     """Exception indicating the web service request ended in an HTTP error code."""
+
     def __init__(self, message, code):
-        super(WebServiceRequestError, self).__init__(message)
+        super(WebServiceRequestError, self).__init__(
+            "{}. HTTP Status code={}".format(message, code)
+        )
         self.code = code
 
 
@@ -155,7 +165,19 @@ class WebserviceInterfaceAdapter(object):
         response = self.ws.do_get(path)
         variable_value = response["_embedded"]["_state"][0]["value"]
 
-        return {"string_values": (variable_value,)}
+        path = "/rw/rapid/symbol/properties/RAPID/{}/{}".format(
+            task_name, variable_name
+        )
+        response = self.ws.do_get(path)
+        variable_props = response["_embedded"]["_state"][0]
+        variable_type = variable_props["dattyp"]
+
+        # # TODO: skip this if the data type is one of the known types (ie atomic)
+        # path = "/rw/rapid/symbol/properties/" + variable_props["typurl"]
+        # response = self.ws.do_get(path)
+        # datatype_props = response["_embedded"]["_state"][0]
+
+        return {"string_values": (variable_value, variable_type)}
 
     def ensure_write_access(self):
         result = self.get_operation_mode()
@@ -269,9 +291,8 @@ class WebserviceInterfaceAdapter(object):
                 fn = getattr(self, instruction)
                 response = fn(**kwargs)
                 result = FEEDBACK_DONE_STRING
-            except Exception as e:
+            except WebServiceError as e:
                 result = "{}: {}".format(FEEDBACK_ERROR_STRING, e)
-                raise
         else:
             try:
                 response = self.custom_instruction(message)
@@ -401,10 +422,14 @@ class WebserviceInterface(EventEmitterMixin):
 
     def _parse_response(self, response, format="json"):
         if response.status_code >= 500 and response.status_code < 600:
-            raise WebServiceRequestError("WebService returned an internal error code", response.status_code)
+            raise WebServiceRequestError(
+                "WebService returned an internal error code", response.status_code
+            )
 
         if response.status_code >= 400 and response.status_code < 500:
-            raise WebServiceRequestError("Invalid or incomplete request", response.status_code)
+            raise WebServiceRequestError(
+                "Invalid or incomplete request", response.status_code
+            )
 
         if response.status_code >= 200 and response.status_code < 300:
             if format == "json":
