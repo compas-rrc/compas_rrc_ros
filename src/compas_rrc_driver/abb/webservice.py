@@ -404,7 +404,7 @@ class WebserviceInterface(EventEmitterMixin):
             raise WebServiceRequestError("WebService returned an internal error code", response.status_code)
 
         if response.status_code >= 400 and response.status_code < 500:
-            raise WebServiceRequestError("Invalid or incomplete request", response.status)
+            raise WebServiceRequestError("Invalid or incomplete request", response.status_code)
 
         if response.status_code >= 200 and response.status_code < 300:
             if format == "json":
