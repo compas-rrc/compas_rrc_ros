@@ -15,7 +15,15 @@ FEEDBACK_ERROR_STRING = "WSFError"
 
 
 class WebServiceInstructionError(Exception):
+    """Exception indicating the web service instruction does not exist."""
     pass
+
+
+class WebServiceRequestError(WebServiceInstructionError):
+    """Exception indicating the web service request ended in an HTTP error code."""
+    def __init__(self, message, code):
+        super(WebServiceRequestError, self).__init__(message)
+        self.code = code
 
 
 def arguments_adapter(adapted_func=None, string_values=None, float_values=None):
@@ -392,8 +400,11 @@ class WebserviceInterface(EventEmitterMixin):
         return url
 
     def _parse_response(self, response, format="json"):
-        if response.status_code == 500:
-            raise Exception("WebService returned an internal error code")
+        if response.status_code >= 500 and response.status_code < 600:
+            raise WebServiceRequestError("WebService returned an internal error code", response.status_code)
+
+        if response.status_code >= 400 and response.status_code < 500:
+            raise WebServiceRequestError("Invalid or incomplete request", response.status)
 
         if response.status_code >= 200 and response.status_code < 300:
             if format == "json":
