@@ -11,7 +11,9 @@ from compas_rrc_driver.event_emitter import EventEmitterMixin
 from compas_rrc_driver.message import Message
 
 FEEDBACK_DONE_STRING = "Done"
-FEEDBACK_ERROR_STRING = "Done FError [WS]"  # the start string needs to match "Done FError"
+FEEDBACK_ERROR_STRING = (
+    "Done FError [WS]"  # the start string needs to match "Done FError"
+)
 
 
 class WebServiceError(Exception):
@@ -193,33 +195,47 @@ class WebserviceInterfaceAdapter(object):
 
             # request write access
             if privilege == "none":
-                print("requesting")
                 path = "/users/rmmp"
                 data = {"privilege": "modify"}
                 response = self.ws.do_post(path, data)
-                print(response)
 
                 t1 = time.time()
                 while time.time() - t1 < 10:
                     path = "/users/rmmp/poll"
                     response = self.ws.do_get(path)
                     status = response["_embedded"]["_state"][0]["status"]
-                    print("status", status)
                     if status == "GRANTED":
                         break
+                    if status == "REJECTED":
+                        raise WebServiceRequestError("RMMP request denied", 400)
                     time.sleep(0.25)
 
     @arguments_adapter(
         string_values=["variable_name", "variable_value", "task_name"], float_values=[]
     )
     def set_variable(self, variable_name, variable_value, task_name):
-        self.ensure_write_access()
+        remaining_retries = 2
+        while remaining_retries > 0:
+            self.ensure_write_access()
 
-        path = "/rw/rapid/symbol/data/RAPID/{}/{}?action=set".format(
-            task_name, variable_name
-        )
-        data = {"value": variable_value}
-        response = self.ws.do_post(path, data)
+            path = "/rw/rapid/symbol/data/RAPID/{}/{}?action=set".format(
+                task_name, variable_name
+            )
+            data = {"value": variable_value}
+            try:
+                response = self.ws.do_post(path, data)
+                break
+            except WebServiceRequestError as e:
+                # We will only retry if we get a 403 Forbidden error
+                # because that means the mastership has been revoked
+                # any other error code is re-raised
+                if e.code != 403:
+                    raise e
+
+                # Re-new session and try again
+                self.ws.session.close()
+                self.ws.session = requests.Session()
+                remaining_retries -= 1
 
         return {}
 
@@ -390,26 +406,26 @@ class WebserviceInterface(EventEmitterMixin):
     def on_response(self, callback):
         self.on("response", callback)
 
-    def do_get(self, path):
+    def do_get(self, path, format="json"):
         response = None
         try:
             url = self._build_url(path)
             self.emit("request", "GET", url)
             response = self.session.get(url, auth=self.auth)
             self.emit("response", response)
-            return self._parse_response(response)
+            return self._parse_response(response, format)
         finally:
             if response:
                 response.close()
 
-    def do_post(self, path, data=None):
+    def do_post(self, path, data=None, format="json"):
         response = None
         try:
             url = self._build_url(path)
             self.emit("request", "POST", url)
             response = self.session.post(url, data=data, auth=self.auth)
             self.emit("response", response)
-            return self._parse_response(response)
+            return self._parse_response(response, format)
         finally:
             if response:
                 response.close()
@@ -483,20 +499,43 @@ if __name__ == "__main__":
     print(r)
     print(r.string_values)
 
-    # m = Message('get_rapid_variable', feedback_level=1)
-    # m.string_values = ['st_RRC_test_variable', 'T_ROB1']
-    # m.float_values = []
-    # r = wa.execute_instruction(m)
-    # print(r.string_values)
+    m = Message('get_variable', feedback_level=1)
+    m.string_values = ['n_X', 'T_ROB1']
+    m.float_values = []
+    r = wa.execute_instruction(m)
+    print(r.string_values)
 
-    # m = Message('set_rapid_variable', feedback_level=1)
-    # m.string_values = ['st_RRC_test_variable', json.dumps("asdasd "), 'T_ROB1']
-    # m.float_values = []
-    # r = wa.execute_instruction(m)
-    # print('Feedback', r.feedback)
-    # print(r)
+    m = Message('set_variable', feedback_level=1)
+    m.string_values = ['n_X', 25, 'T_ROB1']
+    m.float_values = []
+    r = wa.execute_instruction(m)
+    print('Feedback', r.feedback)
+    print(r)
 
-    # m = Message('get_rapid_variable', feedback_level=1)
+    m = Message('get_variable', feedback_level=1)
+    m.string_values = ['n_X', 'T_ROB1']
+    m.float_values = []
+    r = wa.execute_instruction(m)
+    print(r.string_values)
+
+    time.sleep(2)
+
+    m = Message('set_variable', feedback_level=1)
+    m.string_values = ['n_X', 55, 'T_ROB1']
+    m.float_values = []
+    r = wa.execute_instruction(m)
+    print('Feedback', r.feedback)
+    print(r)
+
+    m = Message('get_variable', feedback_level=1)
+    m.string_values = ['n_X', 'T_ROB1']
+    m.float_values = []
+    r = wa.execute_instruction(m)
+    print(r.string_values)
+
+    time.sleep(3)
+
+    # m = Message('get_variable', feedback_level=1)
     # m.string_values = ['st_RRC_test_variable', 'T_ROB1']
     # m.float_values = []
     # r = wa.execute_instruction(m)
