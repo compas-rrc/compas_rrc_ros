@@ -182,7 +182,7 @@ class WebserviceInterfaceAdapter(object):
         # response = self.ws.do_get(path)
         # datatype_props = response["_embedded"]["_state"][0]
 
-        return {"string_values": (json.dumps(variable_value), variable_type)}
+        return {"string_values": (json.dumps(variable_value), "abb", variable_type)}
 
     def ensure_write_access(self):
         result = self.get_operation_mode()
