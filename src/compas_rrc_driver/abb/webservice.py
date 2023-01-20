@@ -9,6 +9,7 @@ import websocket
 
 from compas_rrc_driver.event_emitter import EventEmitterMixin
 from compas_rrc_driver.message import Message
+from compas_rrc_driver.abb.parser import parser
 
 FEEDBACK_DONE_STRING = "Done"
 FEEDBACK_ERROR_STRING = (
@@ -165,7 +166,9 @@ class WebserviceInterfaceAdapter(object):
         path = "/rw/rapid/symbol/data/RAPID/{}/{}".format(task_name, variable_name)
 
         response = self.ws.do_get(path)
-        variable_value = response["_embedded"]["_state"][0]["value"]
+        # Parse RAPID types to python built-in types
+        rapid_value = response["_embedded"]["_state"][0]["value"]
+        variable_value = parser.parse(rapid_value)
 
         path = "/rw/rapid/symbol/properties/RAPID/{}/{}".format(
             task_name, variable_name
@@ -179,7 +182,7 @@ class WebserviceInterfaceAdapter(object):
         # response = self.ws.do_get(path)
         # datatype_props = response["_embedded"]["_state"][0]
 
-        return {"string_values": (variable_value, variable_type)}
+        return {"string_values": (json.dumps(variable_value), variable_type)}
 
     def ensure_write_access(self):
         result = self.get_operation_mode()
