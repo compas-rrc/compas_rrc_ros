@@ -87,6 +87,12 @@ class WebserviceInterfaceAdapter(object):
             "float_values": (float(response["_embedded"]["_state"][0]["speedratio"]),)
         }
 
+    @arguments_adapter(string_values=[], float_values=["speed_ratio"])
+    def set_speed_ratio(self, speed_ratio):
+        data = {"speed-ratio": int(speed_ratio)}
+        response = self.ws.do_post("/rw/panel/speedratio?action=setspeedratio", data)
+        return {}
+
     def get_collision_detect_state(self):
         response = self.ws.do_get("/rw/panel/coldetstate")
         return {"string_values": (response["_embedded"]["_state"][0]["coldetstate"],)}
