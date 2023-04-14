@@ -24,7 +24,7 @@ except ImportError:
 
 CONNECTION_TIMEOUT = 5  # In seconds
 QUEUE_TIMEOUT = 5  # In seconds
-RECONNECT_DELAY = 10  # In seconds
+RECONNECT_DELAY = 1  # In seconds
 SOCKET_SELECT_TIMEOUT = 10  # In seconds
 QUEUE_MESSAGE_TOKEN = 0
 QUEUE_TERMINATION_TOKEN = -1
@@ -145,7 +145,6 @@ class RobotStateConnection(EventEmitterMixin):
 
     def connect(self):
         self.is_running = True
-        self._connect_socket()
 
         self.thread = threading.Thread(
             target=self.socket_worker, name="robot_state_socket"
@@ -288,10 +287,10 @@ class RobotStateConnection(EventEmitterMixin):
                     )
                     time.sleep(RECONNECT_DELAY)
             except Exception as e:
-                error_message = "Exception on robot state interface: {}".format(str(e))
+                error_message = "Exception on robot state interface: {}, waiting {} sec before reconnect...".format(str(e), RECONNECT_DELAY)
                 rospy.logerr(error_message)
-                rospy.signal_shutdown(error_message)
-                break
+                self.socket = None
+                time.sleep(RECONNECT_DELAY)
 
         rospy.loginfo("Robot state: Worker stopped")
 
@@ -318,7 +317,6 @@ class StreamingInterfaceConnection(EventEmitterMixin):
 
     def connect(self):
         self.is_running = True
-        self._connect_socket()
 
         self.thread = threading.Thread(
             target=self.socket_worker, name="streaming_interface_socket"
@@ -449,12 +447,11 @@ class StreamingInterfaceConnection(EventEmitterMixin):
                     )
                     time.sleep(RECONNECT_DELAY)
             except Exception as e:
-                error_message = "Exception on streaming interface worker: {}".format(
-                    str(e)
-                )
+                error_message = "Exception on streaming interface worker: {}, waiting {} sec before reconnect...".format(str(e), RECONNECT_DELAY)
                 rospy.logerr(error_message)
-                rospy.signal_shutdown(error_message)
-                break
+                self.socket = None
+                time.sleep(RECONNECT_DELAY)
+
         rospy.loginfo("Streaming interface: Worker stopped")
 
 
