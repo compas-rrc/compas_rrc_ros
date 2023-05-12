@@ -287,7 +287,9 @@ class RobotStateConnection(EventEmitterMixin):
                     )
                     time.sleep(RECONNECT_DELAY)
             except Exception as e:
-                error_message = "Exception on robot state interface: {}, waiting {} sec before reconnect...".format(str(e), RECONNECT_DELAY)
+                error_message = "Exception on robot state interface: {}, waiting {} sec before reconnect...".format(
+                    str(e), RECONNECT_DELAY
+                )
                 rospy.logerr(error_message)
                 self.socket = None
                 time.sleep(RECONNECT_DELAY)
@@ -447,7 +449,9 @@ class StreamingInterfaceConnection(EventEmitterMixin):
                     )
                     time.sleep(RECONNECT_DELAY)
             except Exception as e:
-                error_message = "Exception on streaming interface worker: {}, waiting {} sec before reconnect...".format(str(e), RECONNECT_DELAY)
+                error_message = "Exception on streaming interface worker: {}, waiting {} sec before reconnect...".format(
+                    str(e), RECONNECT_DELAY
+                )
                 rospy.logerr(error_message)
                 self.socket = None
                 time.sleep(RECONNECT_DELAY)
@@ -523,13 +527,14 @@ def connect_sys_interface(robot_host, debug):
         )
         rospy.logwarn(message)
 
+    mechunit = rospy.get_param("mechunit")
     build_system_message_interface = SYSTEM_MESSAGE_INTERFACE_FACTORIES[robot_type]
 
     robot_user = os.environ.get(robot_user_key)
     robot_pass = os.environ.get(robot_pass_key)
 
     system_interface = build_system_message_interface(
-        robot_host, robot_user, robot_pass
+        robot_host, robot_user, robot_pass, options=dict(mechunit=mechunit)
     )
     system_topic_adapter = SystemMessageTopicAdapter(
         "robot_command_system", "robot_response_system", system_interface

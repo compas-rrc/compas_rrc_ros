@@ -63,9 +63,10 @@ def arguments_adapter(adapted_func=None, string_values=None, float_values=None):
 
 
 class WebserviceInterfaceAdapter(object):
-    def __init__(self, webservice_interface):
+    def __init__(self, webservice_interface, options):
         super(WebserviceInterfaceAdapter, self).__init__()
         self.ws = webservice_interface
+        self.options = options
 
     def on_request(self, callback):
         """Add event handler that is fired when a request is sent out."""
@@ -74,6 +75,38 @@ class WebserviceInterfaceAdapter(object):
     def on_response(self, callback):
         """Add event handler that is fired when a response is received."""
         self.ws.on_response(callback)
+
+    def get_joint_target(self):
+        if "mechunit" not in self.options:
+            raise ValueError(
+                "The mechunit parameter is not set, cannot retrieve joint target"
+            )
+        response = self.ws.do_get(
+            "/rw/motionsystem/mechunits/{}/jointtarget".format(self.options["mechunit"])
+        )
+        joint_target = response["_embedded"]["_state"][0]
+        joints = (
+            float(joint_target["rax_1"]),
+            float(joint_target["rax_2"]),
+            float(joint_target["rax_3"]),
+            float(joint_target["rax_4"]),
+            float(joint_target["rax_5"]),
+            float(joint_target["rax_6"]),
+        )
+        external_axes = (
+            float(joint_target["eax_a"]),
+            float(joint_target["eax_b"]),
+            float(joint_target["eax_c"]),
+            float(joint_target["eax_d"]),
+            float(joint_target["eax_e"]),
+            float(joint_target["eax_f"]),
+        )
+
+        result = {
+            "float_values": joints + external_axes,
+        }
+        print(result)
+        return result
 
     def get_controller_state(self):
         response = self.ws.do_get("/rw/panel/ctrlstate")
@@ -474,9 +507,9 @@ class WebserviceInterface(EventEmitterMixin):
         )
 
 
-def build_system_message_interface(robot_host, robot_user, robot_pass):
+def build_system_message_interface(robot_host, robot_user, robot_pass, options):
     wsi = WebserviceInterface(robot_host, robot_user, robot_pass)
-    wsa = WebserviceInterfaceAdapter(wsi)
+    wsa = WebserviceInterfaceAdapter(wsi, options)
     return wsa
 
 
@@ -508,36 +541,36 @@ if __name__ == "__main__":
     print(r)
     print(r.string_values)
 
-    m = Message('get_variable', feedback_level=1)
-    m.string_values = ['n_X', 'T_ROB1']
+    m = Message("get_variable", feedback_level=1)
+    m.string_values = ["n_X", "T_ROB1"]
     m.float_values = []
     r = wa.execute_instruction(m)
     print(r.string_values)
 
-    m = Message('set_variable', feedback_level=1)
-    m.string_values = ['n_X', 25, 'T_ROB1']
+    m = Message("set_variable", feedback_level=1)
+    m.string_values = ["n_X", 25, "T_ROB1"]
     m.float_values = []
     r = wa.execute_instruction(m)
-    print('Feedback', r.feedback)
+    print("Feedback", r.feedback)
     print(r)
 
-    m = Message('get_variable', feedback_level=1)
-    m.string_values = ['n_X', 'T_ROB1']
+    m = Message("get_variable", feedback_level=1)
+    m.string_values = ["n_X", "T_ROB1"]
     m.float_values = []
     r = wa.execute_instruction(m)
     print(r.string_values)
 
     time.sleep(2)
 
-    m = Message('set_variable', feedback_level=1)
-    m.string_values = ['n_X', 55, 'T_ROB1']
+    m = Message("set_variable", feedback_level=1)
+    m.string_values = ["n_X", 55, "T_ROB1"]
     m.float_values = []
     r = wa.execute_instruction(m)
-    print('Feedback', r.feedback)
+    print("Feedback", r.feedback)
     print(r)
 
-    m = Message('get_variable', feedback_level=1)
-    m.string_values = ['n_X', 'T_ROB1']
+    m = Message("get_variable", feedback_level=1)
+    m.string_values = ["n_X", "T_ROB1"]
     m.float_values = []
     r = wa.execute_instruction(m)
     print(r.string_values)

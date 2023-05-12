@@ -4,11 +4,13 @@
     <arg name="robot_streaming_port" default="30101" doc="Port of the streaming interface" />
     <arg name="robot_state_port" default="30201" doc="Port of the state interface" />
     <arg name="sequence_check_mode" default="none" doc="Define sequence ID check mode. Supported: none|all|incoming|outgoing" />
+    <arg name="mechunit" default="ROB_1" doc="Name of the mechanical unit in the RAPID controller" />
 
     <param name="robot_ip_address" type="str" value="$(arg robot_ip)"/>
     <param name="robot_streaming_port" type="int" value="$(arg robot_streaming_port)"/>
     <param name="robot_state_port" type="int" value="$(arg robot_state_port)"/>
     <param name="sequence_check_mode" type="str" value="$(arg sequence_check_mode)"/>
+    <param name="mechunit" type="str" value="$(arg mechunit)"/>
 
     <!--
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
