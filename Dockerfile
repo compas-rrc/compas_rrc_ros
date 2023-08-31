@@ -6,7 +6,7 @@
 # Usage:
 #  docker pull compasrrc/compas_rrc_driver
 
-FROM ros:kinetic-ros-core
+FROM ros:noetic-ros-core
 LABEL maintainer="RRC Team <rrc@arch.ethz.ch>"
 
 SHELL ["/bin/bash","-c"]
