@@ -6,7 +6,7 @@
 # Usage:
 #  docker pull compasrrc/compas_rrc_driver
 
-FROM ros:kinetic-ros-core
+FROM ros:noetic-ros-core
 LABEL maintainer="RRC Team <rrc@arch.ethz.ch>"
 
 SHELL ["/bin/bash","-c"]
@@ -34,12 +34,13 @@ ADD . $CATKIN_WS/src/compas_rrc_driver
 WORKDIR $CATKIN_WS/src
 
 RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
-    # Reconfigure rosdep
-    && rm -rf /etc/ros/rosdep/sources.list.d/* \
-    && rosdep init && rosdep update \
     # Update apt-get because its cache is always cleared after installs to keep image size down
     && apt-get update \
-    && sudo apt-get install build-essential -y \
+    && test $ROS_PYTHON_VERSION -eq 3 && ROSDEP_PKG="python3-rosdep" || ROSDEP_PKG="python-rosdep" \
+    ; apt-get install build-essential $ROSDEP_PKG -y  \
+    # Reconfigure rosdep
+    && rm -rf /etc/ros/rosdep/sources.list.d/* \
+    && rosdep init && rosdep update --include-eol-distros \
     # Install dependencies
     && cd $CATKIN_WS \
     && rosdep install -y --from-paths . --ignore-src --rosdistro ${ROS_DISTRO} \
