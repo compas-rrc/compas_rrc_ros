@@ -22,7 +22,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: compas_rrc/compas_rrc_driver
+          images: compasrrc/compas_rrc_driver
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
