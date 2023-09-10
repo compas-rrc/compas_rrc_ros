@@ -23,6 +23,11 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: compasrrc/compas_rrc_driver
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
