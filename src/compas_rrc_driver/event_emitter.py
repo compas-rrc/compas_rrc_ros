@@ -40,11 +40,12 @@ except ImportError:
 from collections import OrderedDict, defaultdict
 from threading import RLock
 
-__all__ = ['EventEmitterMixin', 'EventEmitterException']
+__all__ = ["EventEmitterMixin", "EventEmitterException"]
 
 
 class EventEmitterException(Exception):
     """An internal exception."""
+
     pass
 
 
@@ -78,8 +79,8 @@ class EventEmitterMixin(object):
     def __init__(self, *args, **kwargs):
         super(EventEmitterMixin, self).__init__(*args, **kwargs)
         self._events = defaultdict(OrderedDict)
-        self._schedule = kwargs.get('scheduler', ensure_future)
-        self._loop = kwargs.get('loop', None)
+        self._schedule = kwargs.get("scheduler", ensure_future)
+        self._loop = kwargs.get("loop", None)
         self._event_lock = RLock()
 
     def on(self, event, f=None):
@@ -104,6 +105,7 @@ class EventEmitterMixin(object):
         """
 
         with self._event_lock:
+
             def _on(f):
                 self._add_event_handler(event, f, f)
                 return f
@@ -115,7 +117,7 @@ class EventEmitterMixin(object):
 
     def _add_event_handler(self, event, k, v):
         # Fire 'new_listener' *before* adding the new listener!
-        self.emit('new_listener', event, k)
+        self.emit("new_listener", event, k)
 
         # Add the necessary function
         # Note that k and v are the same for `on` handlers, but
@@ -150,26 +152,28 @@ class EventEmitterMixin(object):
                         d = self._schedule(result)
 
                     # scheduler gave us an asyncio Future
-                    if hasattr(d, 'add_done_callback'):
+                    if hasattr(d, "add_done_callback"):
+
                         @d.add_done_callback
                         def _callback(f):
                             exc = f.exception()
                             if exc:
-                                self.emit('error', exc)
+                                self.emit("error", exc)
 
                     # scheduler gave us a twisted Deferred
-                    elif hasattr(d, 'addErrback'):
+                    elif hasattr(d, "addErrback"):
+
                         @d.addErrback
                         def _callback(exc):
-                            self.emit('error', exc)
+                            self.emit("error", exc)
+
                 handled = True
 
-        if not handled and event == 'error':
+        if not handled and event == "error":
             if args:
                 raise args[0]
             else:
-                raise EventEmitterException(
-                    "Uncaught, unspecified 'error' event.")
+                raise EventEmitterException("Uncaught, unspecified 'error' event.")
 
         return handled
 
@@ -179,6 +183,7 @@ class EventEmitterMixin(object):
         """
 
         with self._event_lock:
+
             def _wrapper(f):
                 def g(*args, **kwargs):
                     self.remove_listener(event, f)
@@ -213,6 +218,5 @@ class EventEmitterMixin(object):
                 self._events = defaultdict(OrderedDict)
 
     def listeners(self, event):
-        """Returns a list of all listeners registered to the ``event``.
-        """
+        """Returns a list of all listeners registered to the ``event``."""
         return list(self._events[event].keys())
