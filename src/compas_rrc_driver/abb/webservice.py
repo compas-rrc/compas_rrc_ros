@@ -307,7 +307,13 @@ class WebserviceInterfaceAdapter(object):
     def reset_program_pointer(self):
         path = "/rw/rapid/execution/?action=resetpp"
 
-        result = self.ws.do_post(path)
+        try:
+            result = self.ws.do_post(path)
+        except WebServiceRequestError as e:
+            if e.code == 400:
+                raise WebServiceRequestError("The program pointer cannot be reset in the current state", code=e.code)
+            else:
+                raise e
 
         return {}
 
