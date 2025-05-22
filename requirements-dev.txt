@@ -1,6 +1,0 @@
-pytest
-catkin_pkg
-flake8
-autopep8
-isort
--e .

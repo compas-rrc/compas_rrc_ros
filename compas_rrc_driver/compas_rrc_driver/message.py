@@ -91,5 +91,6 @@ class Message(object):
             'float_values': self.float_values,
         }
 
-    def __cmp__(self, other):
-        return cmp(int(self.sequence_id), int(other.sequence_id))
+    def __hash__(self):
+        assert self.sequence_id is not None
+        return hash(int(self.sequence_id))

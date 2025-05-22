@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "main"
+      - "ros2"
     tags:
       - "v*"
   pull_request:
@@ -36,8 +37,8 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Login to Docker Hub
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v2
+        continue-on-error: true
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
@@ -46,6 +47,6 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ github.repository_owner == 'compas-rrc' && github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

@@ -6,20 +6,15 @@
 # Usage:
 #  docker pull compasrrc/compas_rrc_driver
 
-FROM ros:noetic-ros-core
+FROM ros:jazzy-ros-core
 LABEL maintainer="RRC Team <rrc@arch.ethz.ch>"
 
 SHELL ["/bin/bash","-c"]
 
-RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys F42ED6FBAB17C654
-
 # Install packages
 RUN apt-get update && apt-get install -y \
-    # Basic utilities
     iputils-ping \
-    # ROS bridge server and related packages
     ros-${ROS_DISTRO}-rosbridge-server \
-    ros-${ROS_DISTRO}-tf2-web-republisher \
     --no-install-recommends \
     # Clear apt-cache to reduce image size
     && rm -rf /var/lib/apt/lists/*
@@ -28,29 +23,28 @@ RUN apt-get update && apt-get install -y \
 ENV RRC_BUILD=1
 
 # Create local catkin workspace
-ENV CATKIN_WS=/root/catkin_ws
+ENV WS=/root/ws
 # Add COMPAS RRC Driver package
-ADD . $CATKIN_WS/src/compas_rrc_driver
-WORKDIR $CATKIN_WS/src
+ADD . $WS/src/compas_rrc_driver
+WORKDIR $WS/src
 
 RUN source /opt/ros/${ROS_DISTRO}/setup.bash \
     # Update apt-get because its cache is always cleared after installs to keep image size down
     && apt-get update \
-    && test $ROS_PYTHON_VERSION -eq 3 && ROSDEP_PKG="python3-rosdep" || ROSDEP_PKG="python-rosdep" \
-    ; apt-get install build-essential $ROSDEP_PKG -y  \
+    && apt-get install ros-dev-tools -y  \
     # Reconfigure rosdep
     && rm -rf /etc/ros/rosdep/sources.list.d/* \
-    && rosdep init && rosdep update --include-eol-distros \
+    && rosdep init && rosdep update \
     # Install dependencies
-    && cd $CATKIN_WS \
+    && cd $WS \
     && rosdep install -y --from-paths . --ignore-src --rosdistro ${ROS_DISTRO} \
     # Build catkin workspace
-    && ROS_LANG_DISABLE=geneus:genlisp:gennodejs catkin_make \
+    && colcon build \
     # Clear apt-cache to reduce image size
     && rm -rf /var/lib/apt/lists/*
 
-COPY ./.docker/ros_catkin_entrypoint.sh /
-RUN chmod +x /ros_catkin_entrypoint.sh
+COPY ./.docker/ros_entrypoint.sh /
+RUN chmod +x /ros_entrypoint.sh
 
-ENTRYPOINT ["/ros_catkin_entrypoint.sh"]
+ENTRYPOINT ["/ros_entrypoint.sh"]
 CMD ["bash"]
