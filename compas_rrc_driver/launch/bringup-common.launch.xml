@@ -10,7 +10,7 @@
     -->
 
     <!-- driver -->
-    <node name="$(anon compas_rrc_driver)" pkg="compas_rrc_driver" exec="driver">
+    <node name="$(anon compas_rrc_driver)" pkg="compas_rrc_driver" exec="driver" respawn="true">
         <param name="robot_ip_address" value="$(var robot_ip)" />
         <param name="robot_streaming_port" value="$(var robot_streaming_port)" />
         <param name="robot_state_port" value="$(var robot_state_port)" />
