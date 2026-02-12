@@ -1,7 +1,7 @@
 version: '2'
 services:
   ros-rrc-dev:
-    image: compasrrc/compas_rrc_driver:v1.1.2-beta
+    image: compasrrc/compas_rrc_driver:v1.1.2
     container_name: ros-rrc-dev
     environment:
       - ROS_HOSTNAME=ros-rrc-dev
