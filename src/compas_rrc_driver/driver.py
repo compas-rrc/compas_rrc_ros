@@ -39,6 +39,21 @@ def _set_socket_opts(sock):
     sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 6)
 
 
+def _close_socket(sock):
+    if not sock:
+        return
+
+    try:
+        sock.shutdown(socket.SHUT_RDWR)
+    except Exception:
+        pass
+
+    try:
+        sock.close()
+    except Exception:
+        pass
+
+
 def _get_perf_counter():
     secs = timeit.default_timer() - START_PROCESS_TIME
     return int(secs * 1000)
@@ -116,11 +131,14 @@ class CurrentMessage(object):
 
 
 class RobotStateConnection(EventEmitterMixin):
-    def __init__(self, host, port):
+    def __init__(self, host, port, reconnect_on_failure=True):
         super(RobotStateConnection, self).__init__()
         self.is_running = False
         self.host = host
         self.port = port
+        self.reconnect_on_failure = reconnect_on_failure
+        self.thread = None
+        self.socket = None
 
     def on_message(self, callback):
         """Add an event handler to be triggered on message arrival."""
@@ -132,15 +150,14 @@ class RobotStateConnection(EventEmitterMixin):
 
     def connect(self):
         self.is_running = True
-        self._connect_socket()
-
         self.thread = threading.Thread(target=self.socket_worker, name='robot_state_socket')
         self.thread.daemon = True
         self.thread.start()
 
     def disconnect(self):
         self.is_running = False
-        self.thread.join(CONNECTION_TIMEOUT)
+        if self.thread:
+            self.thread.join(CONNECTION_TIMEOUT)
         self._disconnect_socket()
 
     def _connect_socket(self):
@@ -157,8 +174,8 @@ class RobotStateConnection(EventEmitterMixin):
 
     def _disconnect_socket(self):
         rospy.loginfo('Robot state: Disconnecting socket')
-        if self.socket:
-            self.socket.close()
+        _close_socket(self.socket)
+        self.socket = None
 
     def socket_worker(self):
         rospy.loginfo('Robot state: Worker started')
@@ -168,6 +185,8 @@ class RobotStateConnection(EventEmitterMixin):
         while self.is_running:
             try:
                 if not self.socket:
+                    current_message.clear()
+                    version_already_checked = False
                     self._connect_socket()
 
                 current_message.add_perf_marker('select_before')
@@ -202,8 +221,7 @@ class RobotStateConnection(EventEmitterMixin):
 
                     try:
                         if not chunk:
-                            rospy.logdebug('Nothing read in chuck recv, will continue')
-                            continue
+                            raise socket.error('Socket broken, payload chunk empty')
 
                         current_message.append_payload_chunk(chunk)
 
@@ -240,8 +258,17 @@ class RobotStateConnection(EventEmitterMixin):
                 rospy.logerr(error_message)
 
                 if self.is_running:
+                    _close_socket(self.socket)
                     self.socket = None
+                    current_message.clear()
+                    version_already_checked = False
                     self.emit('socket_broken')
+
+                    if not self.reconnect_on_failure:
+                        error_message = 'Robot state: Disconnected and reconnect disabled'
+                        rospy.logerr(error_message)
+                        rospy.signal_shutdown(error_message)
+                        break
 
                     rospy.logwarn('Robot state: Disconnection detected, waiting %d sec before reconnect...', RECONNECT_DELAY)
                     time.sleep(RECONNECT_DELAY)
@@ -255,12 +282,13 @@ class RobotStateConnection(EventEmitterMixin):
 
 
 class StreamingInterfaceConnection(EventEmitterMixin):
-    def __init__(self, host, port):
+    def __init__(self, host, port, reconnect_on_failure=True):
         super(StreamingInterfaceConnection, self).__init__()
         self.is_running = False
 
         self.host = host
         self.port = port
+        self.reconnect_on_failure = reconnect_on_failure
 
         self.queue = queue.Queue()
         self.thread = None
@@ -276,8 +304,6 @@ class StreamingInterfaceConnection(EventEmitterMixin):
 
     def connect(self):
         self.is_running = True
-        self._connect_socket()
-
         self.thread = threading.Thread(target=self.socket_worker, name='streaming_interface_socket')
         self.thread.daemon = True
         self.thread.start()
@@ -311,8 +337,8 @@ class StreamingInterfaceConnection(EventEmitterMixin):
 
     def _disconnect_socket(self):
         rospy.loginfo('Streaming interface: Disconnecting socket')
-        if self.socket:
-            self.socket.close()
+        _close_socket(self.socket)
+        self.socket = None
 
     def execute_instruction(self, message):
         # TODO: RAPID side does not (yet) instruct the client to disconnect
@@ -342,19 +368,16 @@ class StreamingInterfaceConnection(EventEmitterMixin):
                         TIMING_START[message.sequence_id] = timing_incoming
 
                     wire_message = WireProtocol.serialize(message)
-                    _, writable, _ = select.select([], [self.socket], [])
+                    _, writable, _ = select.select([], [self.socket], [], SOCKET_SELECT_TIMEOUT)
 
                     if len(writable) == 0:
-                        raise Exception('No writable socket available')
+                        raise socket.error('No writable socket available')
 
-                    sent_bytes = writable[0].send(wire_message)
+                    writable[0].sendall(wire_message)
 
                     if LOGGER.getEffectiveLevel() >= logging.DEBUG:
                         timing_sent = _get_perf_counter()
                         LOGGER.debug('S-ID={}, , sent_to_robot={}, incoming={}, msg_len={}'.format(message.sequence_id, timing_sent - timing_incoming, timing_incoming, len(wire_message)))
-
-                    if sent_bytes == 0:
-                        raise socket.error('Streaming socket connection broken')
 
                     self.emit('message_sent', message, wire_message)
                 elif token_type == QUEUE_TERMINATION_TOKEN:
@@ -365,7 +388,7 @@ class StreamingInterfaceConnection(EventEmitterMixin):
                     break
                 elif token_type == QUEUE_RECONNECTION_TOKEN:
                     reconnection_timestamp = message
-                    if reconnection_timestamp > last_successful_connect:
+                    if last_successful_connect is None or reconnection_timestamp >= last_successful_connect:
                         raise socket.error('Reconnection requested at {}'.format(message))
                     else:
                         rospy.loginfo('Ignoring stale reconnection request issued at {} because last successful connection was at {}'.format(
@@ -376,8 +399,15 @@ class StreamingInterfaceConnection(EventEmitterMixin):
                 pass
             except socket.error:
                 if self.is_running:
+                    _close_socket(self.socket)
                     self.socket = None
                     self.emit('socket_broken')
+
+                    if not self.reconnect_on_failure:
+                        error_message = 'Streaming interface: Disconnected and reconnect disabled'
+                        rospy.logerr(error_message)
+                        rospy.signal_shutdown(error_message)
+                        break
 
                     rospy.logwarn('Streaming interface: Disconnection detected, waiting %d sec before reconnect...', RECONNECT_DELAY)
                     time.sleep(RECONNECT_DELAY)
@@ -409,6 +439,7 @@ def main():
     robot_streaming_port = rospy.get_param('robot_streaming_port')
     robot_state_port = rospy.get_param('robot_state_port')
     sequence_check_mode = rospy.get_param('sequence_check_mode')
+    reconnect_on_failure = rospy.get_param('reconnect_on_failure', True)
 
     # Set protocol version in a parameter to enable version checks from the client side
     rospy.set_param('protocol_version', WireProtocol.VERSION)
@@ -419,10 +450,10 @@ def main():
 
     try:
         rospy.loginfo('Connecting robot %s (ports %d & %d, sequence check mode=%s)', robot_host, robot_streaming_port, robot_state_port, sequence_check_mode)
-        streaming_interface = StreamingInterfaceConnection(robot_host, robot_streaming_port)
+        streaming_interface = StreamingInterfaceConnection(robot_host, robot_streaming_port, reconnect_on_failure=reconnect_on_failure)
         streaming_interface.connect()
 
-        robot_state = RobotStateConnection(robot_host, robot_state_port)
+        robot_state = RobotStateConnection(robot_host, robot_state_port, reconnect_on_failure=reconnect_on_failure)
         robot_state.connect()
 
         # If a disconnect is detected on the robot state socket, it will try to reconnect
