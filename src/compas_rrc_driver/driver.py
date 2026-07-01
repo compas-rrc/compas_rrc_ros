@@ -160,6 +160,13 @@ class RobotStateConnection(EventEmitterMixin):
             self.thread.join(CONNECTION_TIMEOUT)
         self._disconnect_socket()
 
+    def reconnect(self):
+        # Force a fresh connection attempt on the next worker iteration.
+        if self.socket:
+            rospy.logwarn('Robot state: Reconnection requested, resetting socket')
+            _close_socket(self.socket)
+            self.socket = None
+
     def _connect_socket(self):
         try:
             rospy.loginfo('Robot state: Connecting socket %s:%d', self.host, self.port)
@@ -456,9 +463,10 @@ def main():
         robot_state = RobotStateConnection(robot_host, robot_state_port, reconnect_on_failure=reconnect_on_failure)
         robot_state.connect()
 
-        # If a disconnect is detected on the robot state socket, it will try to reconnect
-        # So we notify the streaming interface to do the same
+        # If a disconnect is detected on either socket, force both channels to reconnect
+        # to keep state and command streams aligned after transient failures.
         robot_state.on_socket_broken(streaming_interface.reconnect)
+        streaming_interface.on_socket_broken(robot_state.reconnect)
 
         def message_received_log(message):
             rospy.logdebug('Received: "%s", content: %s', message.feedback, str(message).replace('\n', '; '))
