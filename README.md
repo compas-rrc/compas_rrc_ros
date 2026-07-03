@@ -20,6 +20,29 @@ The easiest option to use the ROS package is via Docker:
 
 * Start the robot controller(s).
 
+### Docker from other repositories (private GHCR)
+
+This image is published to GitHub Container Registry as a private package:
+
+* `ghcr.io/compas-rrc/compas_rrc_driver:latest` for `main`
+* `ghcr.io/compas-rrc/compas_rrc_driver:<version>` for git tags (for example `v1.2.3` -> `1.2.3`)
+
+To pull from another repository, authenticate Docker first with a GitHub token that has `read:packages` access to `compas-rrc/compas_rrc_ros`:
+
+```bash
+echo "$GHCR_TOKEN" | docker login ghcr.io -u <github-username> --password-stdin
+```
+
+Then use the image in your `docker-compose.yml`:
+
+```yaml
+services:
+      compas_rrc_driver:
+            image: ghcr.io/compas-rrc/compas_rrc_driver:latest
+```
+
+For CI in other repositories, log in before `docker compose pull` using `docker/login-action` with a secret token.
+
 ### Linux
 
 If you prefer to use a ROS installation on Linux:
